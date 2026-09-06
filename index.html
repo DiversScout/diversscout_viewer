@@ -133,17 +133,18 @@
 
 <script>
   // ==========================================
-  // 接続設定（プロジェクト情報に書き換えてください）
+  // 接続設定（GitHub Actions やデプロイ時に置換または直接入力）
   // ==========================================
   const SUPABASE_URL = '__SUPABASE_URL__';
   const SUPABASE_ANON_KEY = '__SUPABASE_ANON_KEY__';
 
-  const supabase = (SUPABASE_URL.startsWith('__')) 
+  // グローバルの supabase と名前衝突しないよう supabaseClient として宣言
+  const supabaseClient = (SUPABASE_URL.startsWith('__')) 
     ? null 
     : window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
   // マップ初期化
-  const map = L.map('map').setView([33.883, 130.875], 15); // 北九州・小倉近辺デフォルト
+  const map = L.map('map').setView([33.883, 130.875], 15);
 
   const osmTile = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
     maxZoom: 19, attribution: '© OpenStreetMap contributors'
@@ -175,16 +176,16 @@
   dataTypeSelect.addEventListener('change', updateUIState);
   updateUIState();
 
-  // 1. コース一覧の取得（trips テーブルから直接取得）
+  // 1. コース一覧の取得（trips テーブルから取得）
   async function fetchTripList() {
     const selectElem = document.getElementById('mode-select');
-    if (!supabase) {
-      selectElem.innerHTML = '<option value="">(Secrets未設定)</option>';
+    if (!supabaseClient) {
+      selectElem.innerHTML = '<option value="">(Secrets/Variables未設定)</option>';
       return;
     }
 
     try {
-      const { data: trips, error } = await supabase
+      const { data: trips, error } = await supabaseClient
         .from('trips')
         .select('trip_id, title, measured_date, event_name, team_name')
         .order('created_at', { ascending: false });
@@ -197,7 +198,6 @@
           const opt = document.createElement('option');
           opt.value = t.trip_id;
           
-          // イベント・チーム名があれば優先表示
           let label = `ID:${t.trip_id} | ${t.measured_date}`;
           if (t.event_name) label += ` | ${t.event_name}`;
           if (t.team_name) label += ` (${t.team_name})`;
@@ -223,7 +223,7 @@
     const tripId = document.getElementById('mode-select').value;
     const statusMsg = document.getElementById('status-msg');
 
-    if (!tripId || !supabase) return;
+    if (!tripId || !supabaseClient) return;
 
     dataLayerGroup.clearLayers();
     statusMsg.innerText = 'データを取得中...';
@@ -231,8 +231,7 @@
 
     try {
       if (dataType === 'raw') {
-        // trips テーブルから raw_geom (GeoJSON) を直接取得
-        const { data: tripData, error } = await supabase
+        const { data: tripData, error } = await supabaseClient
           .from('trips')
           .select('trip_id, raw_geom')
           .eq('trip_id', tripId)
@@ -248,14 +247,13 @@
         statusMsg.innerText = '';
       } 
       else if (dataType === 'cleansed') {
-        // 経路ポイントとバリアを並行取得
         const [pointsRes, barriersRes] = await Promise.all([
-          supabase
+          supabaseClient
             .from('cleansed_route_points')
             .select('jst, calculated_slope, geom')
             .eq('trip_id', tripId)
             .order('jst', { ascending: true }),
-          supabase
+          supabaseClient
             .from('barriers')
             .select('barrier_id, barrier_type, intensity, geom')
             .eq('trip_id', tripId)
@@ -293,7 +291,6 @@
     if (geom.type === 'Point' && Array.isArray(geom.coordinates)) {
       return [geom.coordinates[1], geom.coordinates[0]];
     }
-    // WKT 文字列 (POINT(lon lat)) の場合のフォールバック
     if (typeof geom === 'string') {
       const match = geom.match(/POINT\s*\(\s*([-\d.]+)\s+([-\d.]+)\s*\)/i);
       if (match) return [parseFloat(match[2]), parseFloat(match[1])];
@@ -307,7 +304,6 @@
     if (rawGeom.type === 'LineString' && Array.isArray(rawGeom.coordinates)) {
       latLngs = rawGeom.coordinates.map(c => [c[1], c[0]]);
     } else if (typeof rawGeom === 'string') {
-      // WKT LINESTRING(...) フォールバック
       const coordsPart = rawGeom.replace(/^.*LINESTRING\s*\(/i, '').replace(/\).*$/, '');
       latLngs = coordsPart.split(',').map(pair => {
         const [lon, lat] = pair.trim().split(/\s+/).map(Number);
@@ -348,7 +344,7 @@
       const c = parsePointGeom(pt.geom);
       if (c) {
         rawLatLngs.push(c);
-        turfCoords.push([c[1], c[0]]); // Turfは [lon, lat]
+        turfCoords.push([c[1], c[0]]);
       }
     });
 
@@ -357,20 +353,17 @@
       return;
     }
 
-    // 元軌跡を赤点線で薄く下敷き表示
     L.polyline(rawLatLngs, { color: '#e74c3c', weight: 2, dashArray: '5, 8', opacity: 0.5 }).addTo(dataLayerGroup);
 
     try {
       statusMsg.innerText = 'OSRMで道路網にマッチング中...';
 
-      // 3m距離ノイズ除去フィルタ
       const cleanCoords = [turfCoords[0]];
       for (let i = 1; i < turfCoords.length; i++) {
         const dist = turf.distance(turf.point(cleanCoords[cleanCoords.length - 1]), turf.point(turfCoords[i]), { units: 'meters' });
         if (dist > 3) cleanCoords.push(turfCoords[i]);
       }
 
-      // 転換点抽出
       const keyPoints = [cleanCoords[0]];
       let lastBearing = turf.bearing(turf.point(cleanCoords[0]), turf.point(cleanCoords[1]));
 
@@ -385,7 +378,6 @@
       }
       keyPoints.push(cleanCoords[cleanCoords.length - 1]);
 
-      // OSRMの上限ポイント数(100)に間引き
       const MAX_OSRM_POINTS = 90;
       let targetPoints = keyPoints;
       if (keyPoints.length > MAX_OSRM_POINTS) {
@@ -433,7 +425,7 @@
         L.circleMarker(coords, {
           radius: 7, fillColor: '#e74c3c', color: '#ffffff', weight: 2, fillOpacity: 0.9
         })
-        .bindTooltip(`<b>バリア (段差)</b><br>衝撃度: ${b.intensity.toFixed(2)} G`, { direction: 'top' })
+        .bindTooltip(`<b>バリア (段差)</b><br>衝撃度: ${Number(b.intensity).toFixed(2)} G`, { direction: 'top' })
         .addTo(dataLayerGroup);
       }
     });
