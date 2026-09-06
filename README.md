@@ -1,0 +1,2 @@
+# diversscout_viewer
+街歩きしたルートを地図上で確認するビューワー
