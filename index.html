@@ -90,9 +90,24 @@
     ? null 
     : window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
+  // マップの初期化
   const map = L.map('map').setView([33.883, 130.875], 15);
-  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19, attribution: '© OpenStreetMap contributors' }).addTo(map);
-
+  // タイルレイヤーの定義
+  const osmLayer = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { 
+    maxZoom: 19, 
+    attribution: '© OpenStreetMap contributors' 
+  });
+  const gsiLayer = L.tileLayer('https://cyberjapandata.gsi.go.jp/xyz/std/{z}/{x}/{y}.png', { 
+    maxZoom: 18, 
+    attribution: '<a href="https://maps.gsi.go.jp/development/ichiran.html" target="_blank">国土地理院</a>' 
+  });
+  // デフォルトでOSMを表示
+  osmLayer.addTo(map);
+  // 右上にベースマップ切り替えコントロールを追加
+  L.control.layers({
+    "OpenStreetMap": osmLayer,
+    "地理院地図 (標準)": gsiLayer
+  }, null, { position: 'topright' }).addTo(map);
   const dataLayerGroup = L.layerGroup().addTo(map);
   const barrierLayerGroup = L.layerGroup().addTo(map);
   let currentBarriers = [];
