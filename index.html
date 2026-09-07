@@ -4,9 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>車椅子ルート・バリアマップ＆環境ビューワー</title>
-  
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-  
   <style>
     body, html { margin: 0; padding: 0; height: 100%; font-family: 'Helvetica Neue', Arial, sans-serif; }
     #container { display: flex; flex-direction: column; height: 100vh; }
@@ -15,6 +13,7 @@
     select { padding: 6px 12px; border-radius: 4px; border: none; font-size: 14px; cursor: pointer; }
     input[type=range] { vertical-align: middle; cursor: pointer; }
     .slider-val { font-weight: bold; min-width: 45px; display: inline-block; text-align: right; }
+    .checkbox-label { font-size: 14px; cursor: pointer; user-select: none; }
     #map { flex: 1; width: 100%; }
     .legend { background: white; padding: 10px; border-radius: 5px; font-size: 12px; line-height: 18px; color: #333; box-shadow: 0 0 15px rgba(0,0,0,0.2); }
     .legend i { width: 12px; height: 12px; float: left; margin-right: 8px; border-radius: 50%; }
@@ -26,11 +25,8 @@
   <div id="control-panel">
     <div class="control-group">
       <label><strong>対象ルート:</strong></label>
-      <select id="mode-select">
-        <option value="">コース一覧を取得中...</option>
-      </select>
+      <select id="mode-select"><option value="">コース一覧を取得中...</option></select>
     </div>
-
     <div class="control-group">
       <label><strong>データ種別:</strong></label>
       <select id="datatype-select">
@@ -38,17 +34,17 @@
         <option value="raw">生軌跡ライン (Raw Geometry)</option>
       </select>
     </div>
-
     <div class="control-group">
-      <label><strong>バリア表示:</strong></label>
+      <label><strong>段差(G)表示:</strong></label>
       <input type="range" id="barrier-slider" min="0" max="10" step="0.5" value="0.0">
       <span class="slider-val"><span id="barrier-val-text">0.0</span> G</span>
-      <span style="font-size: 11px; margin-left: 5px; color: #bdc3c7;">(以上を表示)</span>
     </div>
-
+    <div class="control-group">
+      <label class="checkbox-label"><input type="checkbox" id="chk-wheelie" checked> ウィリー動作</label>
+      <label class="checkbox-label"><input type="checkbox" id="chk-steep" checked> 急傾斜(5度以上)</label>
+    </div>
     <span id="status-msg" style="color: #f1c40f; font-size: 13px; font-weight: bold;"></span>
   </div>
-
   <div id="map"></div>
 </div>
 
@@ -56,48 +52,38 @@
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
 <script>
-  // ==========================================
-  // 接続設定（GitHub Actions やデプロイ時に置換）
-  // ==========================================
   const SUPABASE_URL = '__SUPABASE_URL__';
   const SUPABASE_ANON_KEY = '__SUPABASE_ANON_KEY__';
-
-  const supabaseClient = (SUPABASE_URL.startsWith('__')) 
-    ? null 
-    : window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+  const supabaseClient = (SUPABASE_URL.startsWith('__')) ? null : window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
   const map = L.map('map').setView([33.883, 130.875], 15);
-  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19, attribution: '© OpenStreetMap contributors' }).addTo(map);
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19 }).addTo(map);
 
   const dataLayerGroup = L.layerGroup().addTo(map);
   const barrierLayerGroup = L.layerGroup().addTo(map);
-
-  // グローバル変数に取得したデータを保持（API通信削減のため）
   let currentBarriers = [];
   
-  // UI要素の取得
   const modeSelect = document.getElementById('mode-select');
   const dataTypeSelect = document.getElementById('datatype-select');
   const barrierSlider = document.getElementById('barrier-slider');
   const barrierValText = document.getElementById('barrier-val-text');
+  const chkWheelie = document.getElementById('chk-wheelie');
+  const chkSteep = document.getElementById('chk-steep');
   const statusMsg = document.getElementById('status-msg');
 
-  // イベントリスナーの登録
   modeSelect.addEventListener('change', loadData);
   dataTypeSelect.addEventListener('change', loadData);
+  chkWheelie.addEventListener('change', updateBarrierDisplay);
+  chkSteep.addEventListener('change', updateBarrierDisplay);
   
-  // スライダー操作イベント（APIを叩かず画面上のマーカーのみ再描画）
   barrierSlider.addEventListener('input', function() {
     barrierValText.innerText = parseFloat(this.value).toFixed(1);
     updateBarrierDisplay();
   });
 
-  // GeoJSON / WKT どちらの形式からでも [lat, lon] を抽出するヘルパー関数
   function parsePointGeom(geom) {
     if (!geom) return null;
-    if (geom.type === 'Point' && Array.isArray(geom.coordinates)) {
-      return [geom.coordinates[1], geom.coordinates[0]];
-    }
+    if (geom.type === 'Point' && Array.isArray(geom.coordinates)) return [geom.coordinates[1], geom.coordinates[0]];
     if (typeof geom === 'string') {
       const match = geom.match(/POINT\s*\(\s*([-\d.]+)\s+([-\d.]+)\s*\)/i);
       if (match) return [parseFloat(match[2]), parseFloat(match[1])];
@@ -105,21 +91,10 @@
     return null;
   }
 
-  // コース一覧の取得と初期化
   async function fetchTripList() {
-    if (!supabaseClient) {
-      modeSelect.innerHTML = '<option value="">(Secrets/Variables未設定)</option>';
-      return;
-    }
-
+    if (!supabaseClient) return;
     try {
-      const { data: trips, error } = await supabaseClient
-        .from('trips')
-        .select('trip_id, title, measured_date')
-        .order('created_at', { ascending: false });
-
-      if (error) throw error;
-
+      const { data: trips } = await supabaseClient.from('trips').select('trip_id, title, measured_date').order('created_at', { ascending: false });
       modeSelect.innerHTML = '';
       if (trips && trips.length > 0) {
         trips.forEach(t => {
@@ -129,32 +104,22 @@
           modeSelect.appendChild(opt);
         });
         loadData();
-      } else {
-        modeSelect.innerHTML = '<option value="">コースが見つかりません</option>';
       }
-    } catch (err) {
-      console.error(err);
-      modeSelect.innerHTML = '<option value="">一覧取得エラー</option>';
-    }
+    } catch (err) { console.error(err); }
   }
 
-  // データの読み込み
   async function loadData() {
     const tripId = modeSelect.value;
     if (!tripId || !supabaseClient) return;
 
     dataLayerGroup.clearLayers();
     barrierLayerGroup.clearLayers();
-    currentBarriers = [];
     statusMsg.innerText = '更新中...';
-    statusMsg.style.color = '#f1c40f';
-
+    
     try {
       const targetCol = (dataTypeSelect.value === 'raw') ? 'raw_geom' : 'cleansed_geom';
-      
-      // ルートとバリアを一括並行取得
       const [barriersRes, tripRes] = await Promise.all([
-        supabaseClient.from('barriers').select('intensity, geom').eq('trip_id', tripId).limit(5000),
+        supabaseClient.from('barriers').select('barrier_type, intensity, geom').eq('trip_id', tripId).limit(10000),
         supabaseClient.from('trips').select(targetCol).eq('trip_id', tripId).single()
       ]);
 
@@ -162,87 +127,74 @@
       const tripData = tripRes.data;
 
       if (!tripData || !tripData[targetCol]) {
-        statusMsg.innerText = 'データが存在しません。';
-        statusMsg.style.color = '#e74c3c';
+        statusMsg.innerText = 'データなし';
         return;
       }
 
-      // ルートの描画
       const rawGeom = tripData[targetCol];
       let coordsArray = [];
-      if (rawGeom.type === 'LineString') {
-        coordsArray = rawGeom.coordinates;
-      } else if (typeof rawGeom === 'string') {
-        const coordsPart = rawGeom.replace(/^.*LINESTRING\s*\(/i, '').replace(/\).*$/, '');
-        coordsArray = coordsPart.split(',').map(pair => pair.trim().split(/\s+/).map(Number));
-      }
+      if (rawGeom.type === 'LineString') coordsArray = rawGeom.coordinates;
+      else if (typeof rawGeom === 'string') coordsArray = rawGeom.replace(/^.*LINESTRING\s*\(/i, '').replace(/\).*$/, '').split(',').map(p => p.trim().split(/\s+/).map(Number));
 
       if (coordsArray.length > 0) {
-        const lineColor = (dataTypeSelect.value === 'raw') ? '#8e44ad' : '#16a085';
         const latLngs = coordsArray.map(c => [c[1], c[0]]);
-        const polyline = L.polyline(latLngs, { color: lineColor, weight: 6, opacity: 0.9 }).addTo(dataLayerGroup);
-        map.fitBounds(polyline.getBounds(), { padding: [30, 30] });
-
+        L.polyline(latLngs, { color: (dataTypeSelect.value === 'raw') ? '#8e44ad' : '#16a085', weight: 6, opacity: 0.9 }).addTo(dataLayerGroup);
+        map.fitBounds(L.polyline(latLngs).getBounds(), { padding: [30, 30] });
         renderStartEnd(latLngs[0], latLngs[latLngs.length - 1]);
       }
-
-      // メモリ上のバリアデータから描画
       updateBarrierDisplay();
       statusMsg.innerText = '';
-    } catch (err) {
-      console.error(err);
-      statusMsg.innerText = '読み込みエラー';
-      statusMsg.style.color = '#e74c3c';
-    }
+    } catch (err) { console.error(err); }
   }
 
-  // クライアント側でのバリア描画更新
   function updateBarrierDisplay() {
     barrierLayerGroup.clearLayers();
-    const threshold = parseFloat(barrierSlider.value);
+    const stepThreshold = parseFloat(barrierSlider.value);
+    const showWheelie = chkWheelie.checked;
+    const showSteep = chkSteep.checked;
 
-    if (currentBarriers.length > 0) {
-      currentBarriers.forEach(b => {
-        if (b.intensity >= threshold) {
-          const coords = parsePointGeom(b.geom);
-          if (coords) {
-            L.circleMarker(coords, {
-              radius: 7, fillColor: '#e74c3c', color: '#ffffff', weight: 2, fillOpacity: 0.9
-            })
-            .bindTooltip(`衝撃度: ${Number(b.intensity).toFixed(2)} G`, { direction: 'top' })
-            .addTo(barrierLayerGroup);
-          }
+    currentBarriers.forEach(b => {
+      let draw = false;
+      let color = '#e74c3c'; // デフォルト赤(段差)
+      let label = '';
+
+      if (b.barrier_type === 'step' && b.intensity >= stepThreshold) {
+        draw = true; label = `段差衝撃: ${Number(b.intensity).toFixed(2)} G`; color = '#e74c3c';
+      } else if (b.barrier_type === 'wheelie' && showWheelie) {
+        draw = true; label = `ウィリー: ${Number(b.intensity).toFixed(2)} deg/s`; color = '#f39c12'; // オレンジ
+      } else if (b.barrier_type === 'steep_slope' && showSteep) {
+        draw = true; label = `急傾斜: ${Number(b.intensity).toFixed(2)} 度`; color = '#9b59b6'; // 紫
+      }
+
+      if (draw) {
+        const coords = parsePointGeom(b.geom);
+        if (coords) {
+          L.circleMarker(coords, { radius: 6, fillColor: color, color: '#ffffff', weight: 2, fillOpacity: 0.9 })
+           .bindTooltip(label, { direction: 'top' }).addTo(barrierLayerGroup);
         }
-      });
-    }
-  }
-
-  // スタート・ゴールマーカーの生成
-  function renderStartEnd(startPt, endPt) {
-    const createIcon = (t, c) => L.divIcon({
-      className: '', html: `<div style="background:${c}; color:white; font-weight:bold; width:24px; height:24px; line-height:24px; text-align:center; border-radius:50%; border:2px solid white; box-shadow:0 2px 5px rgba(0,0,0,0.3);">${t}</div>`,
-      iconSize: [28, 28], iconAnchor: [14, 14]
+      }
     });
-    L.marker(startPt, { icon: createIcon('S', '#2ecc71') }).bindTooltip('スタート', { direction: 'top' }).addTo(dataLayerGroup);
-    L.marker(endPt, { icon: createIcon('G', '#e74c3c') }).bindTooltip('ゴール', { direction: 'top' }).addTo(dataLayerGroup);
   }
 
-  // 凡例の追加
+  function renderStartEnd(startPt, endPt) {
+    const createIcon = (t, c) => L.divIcon({ className: '', html: `<div style="background:${c}; color:white; font-weight:bold; width:24px; height:24px; line-height:24px; text-align:center; border-radius:50%; border:2px solid white;">${t}</div>`, iconSize: [28, 28], iconAnchor: [14, 14] });
+    L.marker(startPt, { icon: createIcon('S', '#2ecc71') }).addTo(dataLayerGroup);
+    L.marker(endPt, { icon: createIcon('G', '#e74c3c') }).addTo(dataLayerGroup);
+  }
+
   const legend = L.control({ position: 'bottomright' });
   legend.onAdd = function () {
     const div = L.DomUtil.create('div', 'legend');
     div.innerHTML += '<b>表示凡例</b><br>';
-    div.innerHTML += '<i style="background: #16a085;"></i>クレンジング (OSRM補正)<br>';
-    div.innerHTML += '<i style="background: #8e44ad;"></i>生軌跡ライン<br>';
-    div.innerHTML += '<i style="background: #e74c3c;"></i>バリア (衝撃検知)<br>';
-    div.innerHTML += '<i style="background: #2ecc71; border: 1px solid #ccc;"></i>S スタート / <i style="background: #e74c3c; border: 1px solid #ccc;"></i>G ゴール<br>';
+    div.innerHTML += '<i style="background: #16a085;"></i>ルート (OSRM補正)<br>';
+    div.innerHTML += '<i style="background: #e74c3c;"></i>段差・衝撃 (赤)<br>';
+    div.innerHTML += '<i style="background: #f39c12;"></i>ウィリー動作 (オレンジ)<br>';
+    div.innerHTML += '<i style="background: #9b59b6;"></i>急傾斜 (紫)<br>';
     return div;
   };
   legend.addTo(map);
 
-  // 初期ロード
   fetchTripList();
 </script>
-
 </body>
 </html>
