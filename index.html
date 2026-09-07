@@ -92,29 +92,39 @@
 
   // マップの初期化
   const map = L.map('map').setView([33.883, 130.875], 15);
-  // タイルレイヤーの定義
+
+  // 1. OpenStreetMap (標準)
   const osmLayer = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { 
     maxZoom: 19, 
     attribution: '© OpenStreetMap contributors' 
   });
+  // 2. OpenTopoMap (等高線と陰影が入った高解像度マップ。ズームレベル17まで対応)
+  const topoLayer = L.tileLayer('https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png', {
+    maxZoom: 17,
+    attribution: 'Map data: © OpenStreetMap contributors, SRTM | Map style: © OpenTopoMap (CC-BY-SA)'
+  });
+  // 3. 国土地理院 (標準)
   const gsiLayer = L.tileLayer('https://cyberjapandata.gsi.go.jp/xyz/std/{z}/{x}/{y}.png', { 
     maxZoom: 18, 
     attribution: '<a href="https://maps.gsi.go.jp/development/ichiran.html" target="_blank">国土地理院</a>' 
   });
-  // 地形図（色別標高図）レイヤーを追加 ※maxZoomは15まで
-  const gsiReliefLayer = L.tileLayer('https://cyberjapandata.gsi.go.jp/xyz/relief/{z}/{x}/{y}.png', { 
-    maxZoom: 15, 
-    attribution: '<a href="https://maps.gsi.go.jp/development/ichiran.html" target="_blank">国土地理院</a>' 
+  // 4. 国土地理院 ハイブリッド (淡色地図 + 陰影起伏図)
+  // 淡色地図（ズーム18まで）をベースに、陰影起伏図（ズーム15まで）を透過して重ねる
+  const gsiPaleLayer = L.tileLayer('https://cyberjapandata.gsi.go.jp/xyz/pale/{z}/{x}/{y}.png', { maxZoom: 18 });
+  const gsiHillshadeLayer = L.tileLayer('https://cyberjapandata.gsi.go.jp/xyz/hillshademap/{z}/{x}/{y}.png', { maxZoom: 15, opacity: 0.5 });
+  const gsiHybridLayer = L.layerGroup([gsiPaleLayer, gsiHillshadeLayer], {
+      attribution: '<a href="https://maps.gsi.go.jp/development/ichiran.html" target="_blank">国土地理院</a>'
   });
   // デフォルトでOSMを表示
   osmLayer.addTo(map);
   // 右上にベースマップ切り替えコントロールを追加
   L.control.layers({
-    "OpenStreetMap": osmLayer,
+    "OpenStreetMap (標準)": osmLayer,
+    "OpenTopoMap (等高線・陰影)": topoLayer,
     "地理院地図 (標準)": gsiLayer,
-    "地理院地図 (色別標高図)": gsiReliefLayer
+    "地理院地図 (地形ハイブリッド)": gsiHybridLayer
   }, null, { position: 'topright' }).addTo(map);
-    
+  
   const dataLayerGroup = L.layerGroup().addTo(map);
   const barrierLayerGroup = L.layerGroup().addTo(map);
   let currentBarriers = [];
