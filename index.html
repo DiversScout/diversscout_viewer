@@ -101,13 +101,20 @@
     maxZoom: 18, 
     attribution: '<a href="https://maps.gsi.go.jp/development/ichiran.html" target="_blank">国土地理院</a>' 
   });
+  // 地形図（色別標高図）レイヤーを追加 ※maxZoomは15まで
+  const gsiReliefLayer = L.tileLayer('https://cyberjapandata.gsi.go.jp/xyz/relief/{z}/{x}/{y}.png', { 
+    maxZoom: 15, 
+    attribution: '<a href="https://maps.gsi.go.jp/development/ichiran.html" target="_blank">国土地理院</a>' 
+  });
   // デフォルトでOSMを表示
   osmLayer.addTo(map);
   // 右上にベースマップ切り替えコントロールを追加
   L.control.layers({
     "OpenStreetMap": osmLayer,
-    "地理院地図 (標準)": gsiLayer
+    "地理院地図 (標準)": gsiLayer,
+    "地理院地図 (色別標高図)": gsiReliefLayer
   }, null, { position: 'topright' }).addTo(map);
+    
   const dataLayerGroup = L.layerGroup().addTo(map);
   const barrierLayerGroup = L.layerGroup().addTo(map);
   let currentBarriers = [];
