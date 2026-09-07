@@ -5,92 +5,19 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>車椅子ルート・バリアマップ＆環境ビューワー</title>
   
-  <!-- Leaflet CSS -->
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
   
   <style>
-    body, html {
-      margin: 0;
-      padding: 0;
-      height: 100%;
-      font-family: 'Helvetica Neue', Arial, sans-serif;
-    }
-    #container {
-      display: flex;
-      flex-direction: column;
-      height: 100vh;
-    }
-    #control-panel {
-      padding: 10px 20px;
-      background-color: #2c3e50;
-      color: #ecf0f1;
-      display: flex;
-      gap: 15px;
-      align-items: center;
-      box-shadow: 0 2px 5px rgba(0,0,0,0.2);
-      z-index: 1000;
-      flex-wrap: wrap;
-    }
-    .control-group {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-    }
-    select, button {
-      padding: 6px 12px;
-      border-radius: 4px;
-      border: none;
-      font-size: 14px;
-    }
-    button {
-      background-color: #3498db;
-      color: white;
-      cursor: pointer;
-      font-weight: bold;
-      transition: background-color 0.2s;
-    }
-    button:hover {
-      background-color: #2980b9;
-    }
-    .checkbox-label {
-      display: flex;
-      align-items: center;
-      gap: 5px;
-      font-size: 14px;
-      cursor: pointer;
-      user-select: none;
-      padding: 4px 8px;
-      background-color: rgba(255, 255, 255, 0.1);
-      border-radius: 4px;
-    }
-    .checkbox-label.disabled {
-      opacity: 0.4;
-      cursor: not-allowed;
-    }
-    #map {
-      flex: 1;
-      width: 100%;
-    }
-    .legend {
-      background: white;
-      padding: 10px 14px;
-      border-radius: 5px;
-      box-shadow: 0 0 15px rgba(0,0,0,0.2);
-      font-size: 12px;
-      line-height: 18px;
-      color: #333;
-    }
-    .legend i {
-      width: 12px;
-      height: 12px;
-      float: left;
-      margin-right: 8px;
-      opacity: 0.8;
-      border-radius: 50%;
-    }
-    .leaflet-tooltip {
-      font-size: 13px;
-    }
+    body, html { margin: 0; padding: 0; height: 100%; font-family: 'Helvetica Neue', Arial, sans-serif; }
+    #container { display: flex; flex-direction: column; height: 100vh; }
+    #control-panel { padding: 10px 20px; background-color: #2c3e50; color: #ecf0f1; display: flex; gap: 15px; align-items: center; z-index: 1000; }
+    .control-group { display: flex; align-items: center; gap: 8px; }
+    select, button { padding: 6px 12px; border-radius: 4px; border: none; font-size: 14px; }
+    button { background-color: #3498db; color: white; cursor: pointer; font-weight: bold; }
+    button:hover { background-color: #2980b9; }
+    #map { flex: 1; width: 100%; }
+    .legend { background: white; padding: 10px; border-radius: 5px; font-size: 12px; line-height: 18px; color: #333; }
+    .legend i { width: 12px; height: 12px; float: left; margin-right: 8px; border-radius: 50%; }
   </style>
 </head>
 <body>
@@ -98,22 +25,15 @@
 <div id="container">
   <div id="control-panel">
     <div class="control-group">
-      <label for="datatype-select"><strong>データ種別:</strong></label>
+      <label><strong>データ種別:</strong></label>
       <select id="datatype-select">
-        <option value="cleansed">クレンジングデータ (平滑化済み)</option>
+        <option value="cleansed">クレンジングデータ (OSRM補正済み)</option>
         <option value="raw">生軌跡ライン (Raw Geometry)</option>
       </select>
     </div>
 
     <div class="control-group">
-      <label id="osm-match-wrapper" class="checkbox-label">
-        <input type="checkbox" id="chk-osm-match">
-        <span>★ 経路マッチング (Turf+OSRM)</span>
-      </label>
-    </div>
-
-    <div class="control-group">
-      <label for="mode-select"><strong>対象ルート:</strong></label>
+      <label><strong>対象ルート:</strong></label>
       <select id="mode-select">
         <option value="">コース一覧を取得中...</option>
       </select>
@@ -126,15 +46,10 @@
   <div id="map"></div>
 </div>
 
-<!-- Leaflet JS, Turf.js, Supabase JS Client -->
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-<script src="https://unpkg.com/@turf/turf@6/turf.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
 <script>
-  // ==========================================
-  // 接続設定（GitHub Actions やデプロイ時に置換）
-  // ==========================================
   const SUPABASE_URL = '__SUPABASE_URL__';
   const SUPABASE_ANON_KEY = '__SUPABASE_ANON_KEY__';
 
@@ -142,344 +57,122 @@
     ? null 
     : window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
-  // マップ初期化
   const map = L.map('map').setView([33.883, 130.875], 15);
-
-  const osmTile = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-    maxZoom: 19, attribution: '© OpenStreetMap contributors'
-  });
-  const gsiStandardTile = L.tileLayer('https://cyberjapandata.gsi.go.jp/xyz/std/{z}/{x}/{y}.png', {
-    maxZoom: 18, attribution: '国土地理院'
-  });
-
-  osmTile.addTo(map);
-  L.control.layers({ "OpenStreetMap": osmTile, "国土地理院": gsiStandardTile }, null, { position: 'topright' }).addTo(map);
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19 }).addTo(map);
 
   const dataLayerGroup = L.layerGroup().addTo(map);
-
   const dataTypeSelect = document.getElementById('datatype-select');
-  const chkOsmMatch = document.getElementById('chk-osm-match');
-  const osmMatchWrapper = document.getElementById('osm-match-wrapper');
 
-  function updateUIState() {
-    if (dataTypeSelect.value === 'cleansed') {
-      chkOsmMatch.disabled = false;
-      osmMatchWrapper.classList.remove('disabled');
-    } else {
-      chkOsmMatch.disabled = true;
-      chkOsmMatch.checked = false;
-      osmMatchWrapper.classList.add('disabled');
-    }
-  }
-
-  dataTypeSelect.addEventListener('change', updateUIState);
-  updateUIState();
-
-  // 1. コース一覧の取得
   async function fetchTripList() {
     const selectElem = document.getElementById('mode-select');
-    if (!supabaseClient) {
-      selectElem.innerHTML = '<option value="">(Secrets/Variables未設定)</option>';
-      return;
-    }
+    if (!supabaseClient) return;
 
     try {
-      const { data: trips, error } = await supabaseClient
+      const { data: trips } = await supabaseClient
         .from('trips')
-        .select('trip_id, title, measured_date, event_name, team_name')
+        .select('trip_id, title, measured_date')
         .order('created_at', { ascending: false });
-
-      if (error) throw error;
 
       selectElem.innerHTML = '';
       if (trips && trips.length > 0) {
         trips.forEach(t => {
           const opt = document.createElement('option');
           opt.value = t.trip_id;
-          
-          let label = `ID:${t.trip_id} | ${t.measured_date}`;
-          if (t.event_name) label += ` | ${t.event_name}`;
-          if (t.team_name) label += ` (${t.team_name})`;
-          if (!t.event_name && !t.team_name) label += ` | ${t.title}`;
-          
-          opt.textContent = label;
+          opt.textContent = `ID:${t.trip_id} | ${t.measured_date} | ${t.title}`;
           selectElem.appendChild(opt);
         });
         loadData();
-      } else {
-        selectElem.innerHTML = '<option value="">コースが見つかりません</option>';
       }
     } catch (err) {
       console.error(err);
-      selectElem.innerHTML = '<option value="">一覧取得エラー</option>';
     }
   }
 
-  // 2. データ読み込みメイン
   async function loadData() {
-    const dataType = dataTypeSelect.value;
-    const isOsmMatchEnabled = chkOsmMatch.checked;
     const tripId = document.getElementById('mode-select').value;
     const statusMsg = document.getElementById('status-msg');
-
-    if (!tripId || !supabaseClient) return;
+    if (!tripId) return;
 
     dataLayerGroup.clearLayers();
     statusMsg.innerText = 'データを取得中...';
     statusMsg.style.color = '#f1c40f';
 
     try {
-      // バリア情報はどちらのモードでも共通して取得
-      const { data: barriers, error: barriersErr } = await supabaseClient
+      const { data: barriers } = await supabaseClient
         .from('barriers')
-        .select('barrier_id, barrier_type, intensity, geom')
+        .select('intensity, geom')
+        .eq('trip_id', tripId).limit(5000);
+
+      const targetCol = (dataTypeSelect.value === 'raw') ? 'raw_geom' : 'cleansed_geom';
+      const { data: tripData } = await supabaseClient
+        .from('trips')
+        .select(targetCol)
         .eq('trip_id', tripId)
-        .limit(5000);
+        .single();
 
-      if (barriersErr) console.warn("バリア情報の取得に失敗:", barriersErr);
+      if (!tripData || !tripData[targetCol]) {
+        statusMsg.innerText = 'データが存在しません。';
+        statusMsg.style.color = '#e74c3c';
+        return;
+      }
 
-      if (dataType === 'raw') {
-        const { data: tripData, error } = await supabaseClient
-          .from('trips')
-          .select('trip_id, raw_geom')
-          .eq('trip_id', tripId)
-          .single();
+      statusMsg.innerText = '';
+      const rawGeom = tripData[targetCol];
+      let coordsArray = [];
+      
+      if (rawGeom.type === 'LineString') {
+        coordsArray = rawGeom.coordinates;
+      } else if (typeof rawGeom === 'string') {
+        const coordsPart = rawGeom.replace(/^.*LINESTRING\s*\(/i, '').replace(/\).*$/, '');
+        coordsArray = coordsPart.split(',').map(pair => pair.trim().split(/\s+/).map(Number));
+      }
 
-        if (error || !tripData || !tripData.raw_geom) {
-          statusMsg.innerText = '生軌跡データが存在しません。';
-          statusMsg.style.color = '#e74c3c';
-          return;
-        }
+      if (coordsArray.length > 0) {
+        // LineString描画 (色: クレンジング時は緑、Raw時は紫)
+        const lineColor = (dataTypeSelect.value === 'raw') ? '#8e44ad' : '#16a085';
+        const latLngs = coordsArray.map(c => [c[1], c[0]]);
+        const polyline = L.polyline(latLngs, { color: lineColor, weight: 6, opacity: 0.9 }).addTo(dataLayerGroup);
+        map.fitBounds(polyline.getBounds(), { padding: [30, 30] });
 
-        renderRawLineString(tripData.raw_geom);
-        renderBarriers(barriers || []);
-        statusMsg.innerText = '';
-      } 
-      else if (dataType === 'cleansed') {
-        // ★修正: 点群テーブルではなく trips テーブルから cleansed_geom (LineString) 1行を取得
-        const { data: tripData, error } = await supabaseClient
-          .from('trips')
-          .select('cleansed_geom')
-          .eq('trip_id', tripId)
-          .single();
+        // S/Gマーカー
+        renderStartEnd(latLngs[0], latLngs[latLngs.length - 1]);
+      }
 
-        if (error || !tripData || !tripData.cleansed_geom) {
-          statusMsg.innerText = 'クレンジングデータが存在しません。「生軌跡ライン」を選択してください。';
-          statusMsg.style.color = '#e74c3c';
-          return;
-        }
-
-        statusMsg.innerText = '';
-
-        // 取得した LineString から座標配列を抽出し、既存ロジック用のデータ構造に変換
-        const rawGeom = tripData.cleansed_geom;
-        let coordsArray = [];
-        if (rawGeom.type === 'LineString' && Array.isArray(rawGeom.coordinates)) {
-          coordsArray = rawGeom.coordinates;
-        } else if (typeof rawGeom === 'string') {
-          const coordsPart = rawGeom.replace(/^.*LINESTRING\s*\(/i, '').replace(/\).*$/, '');
-          coordsArray = coordsPart.split(',').map(pair => pair.trim().split(/\s+/).map(Number));
-        }
-
-        // 既存の parsePointGeom 等に適合させるためのダミー Point 構造の配列を生成
-        const routePoints = coordsArray.map(c => ({ geom: { type: "Point", coordinates: c } }));
-
-        if (routePoints.length === 0) {
-          statusMsg.innerText = '有効な座標データが含まれていません。';
-          statusMsg.style.color = '#e74c3c';
-          return;
-        }
-
-        if (isOsmMatchEnabled) {
-          await renderOSRMMatchedData(routePoints, barriers || []);
-        } else {
-          renderCourseData(routePoints, barriers || []);
-        }
+      // バリア描画
+      if (barriers) {
+        barriers.forEach(b => {
+          const match = (typeof b.geom === 'string') ? b.geom.match(/POINT\s*\(\s*([-\d.]+)\s+([-\d.]+)\s*\)/i) : null;
+          if (match) {
+            L.circleMarker([parseFloat(match[2]), parseFloat(match[1])], {
+              radius: 7, fillColor: '#e74c3c', color: '#ffffff', weight: 2, fillOpacity: 0.9
+            })
+            .bindTooltip(`衝撃度: ${Number(b.intensity).toFixed(2)} G`, { direction: 'top' })
+            .addTo(dataLayerGroup);
+          }
+        });
       }
     } catch (err) {
-      console.error(err);
-      statusMsg.innerText = `データ取得失敗: ${err.message || err}`;
-      statusMsg.style.color = '#e74c3c';
+      statusMsg.innerText = 'エラー発生';
     }
   }
 
-  // GeoJSON / PostGIS Point から [lat, lon] を抽出するヘルパー
-  function parsePointGeom(geom) {
-    if (!geom) return null;
-    if (geom.type === 'Point' && Array.isArray(geom.coordinates)) {
-      return [geom.coordinates[1], geom.coordinates[0]];
-    }
-    if (typeof geom === 'string') {
-      const match = geom.match(/POINT\s*\(\s*([-\d.]+)\s+([-\d.]+)\s*\)/i);
-      if (match) return [parseFloat(match[2]), parseFloat(match[1])];
-    }
-    return null;
-  }
-
-  // 生ライン描画
-  function renderRawLineString(rawGeom) {
-    let latLngs = [];
-    if (rawGeom.type === 'LineString' && Array.isArray(rawGeom.coordinates)) {
-      latLngs = rawGeom.coordinates.map(c => [c[1], c[0]]);
-    } else if (typeof rawGeom === 'string') {
-      const coordsPart = rawGeom.replace(/^.*LINESTRING\s*\(/i, '').replace(/\).*$/, '');
-      latLngs = coordsPart.split(',').map(pair => {
-        const [lon, lat] = pair.trim().split(/\s+/).map(Number);
-        return [lat, lon];
-      });
-    }
-
-    if (latLngs.length > 0) {
-      const line = L.polyline(latLngs, { color: '#8e44ad', weight: 4, opacity: 0.8 }).addTo(dataLayerGroup);
-      map.fitBounds(line.getBounds(), { padding: [30, 30] });
-      renderStartEnd(latLngs[0], latLngs[latLngs.length - 1]);
-    }
-  }
-
-  // クレンジング経路通常描画
-  function renderCourseData(routePoints, barriers) {
-    const latLngs = [];
-    routePoints.forEach(pt => {
-      const coords = parsePointGeom(pt.geom);
-      if (coords) latLngs.push(coords);
-    });
-
-    if (latLngs.length > 0) {
-      const polyline = L.polyline(latLngs, { color: '#2980b9', weight: 5, opacity: 0.85 }).addTo(dataLayerGroup);
-      map.fitBounds(polyline.getBounds(), { padding: [30, 30] });
-      renderStartEnd(latLngs[0], latLngs[latLngs.length - 1]);
-    }
-    renderBarriers(barriers);
-  }
-
-  // OSRMマッチング描画
-  async function renderOSRMMatchedData(routePoints, barriers) {
-    const statusMsg = document.getElementById('status-msg');
-    const rawLatLngs = [];
-    const turfCoords = [];
-
-    routePoints.forEach(pt => {
-      const c = parsePointGeom(pt.geom);
-      if (c) {
-        rawLatLngs.push(c);
-        turfCoords.push([c[1], c[0]]);
-      }
-    });
-
-    if (turfCoords.length < 3) {
-      renderCourseData(routePoints, barriers);
-      return;
-    }
-
-    L.polyline(rawLatLngs, { color: '#e74c3c', weight: 2, dashArray: '5, 8', opacity: 0.5 }).addTo(dataLayerGroup);
-
-    try {
-      statusMsg.innerText = 'OSRMで道路網にマッチング中...';
-
-      const cleanCoords = [turfCoords[0]];
-      for (let i = 1; i < turfCoords.length; i++) {
-        const dist = turf.distance(turf.point(cleanCoords[cleanCoords.length - 1]), turf.point(turfCoords[i]), { units: 'meters' });
-        if (dist > 3) cleanCoords.push(turfCoords[i]);
-      }
-
-      const keyPoints = [cleanCoords[0]];
-      let lastBearing = turf.bearing(turf.point(cleanCoords[0]), turf.point(cleanCoords[1]));
-
-      for (let i = 1; i < cleanCoords.length - 1; i++) {
-        const currentBearing = turf.bearing(turf.point(cleanCoords[i]), turf.point(cleanCoords[i + 1]));
-        let diff = Math.abs(currentBearing - lastBearing);
-        if (diff > 180) diff = 360 - diff;
-        if (diff > 15) {
-          keyPoints.push(cleanCoords[i]);
-          lastBearing = currentBearing;
-        }
-      }
-      keyPoints.push(cleanCoords[cleanCoords.length - 1]);
-
-      const MAX_OSRM_POINTS = 90;
-      let targetPoints = keyPoints;
-      if (keyPoints.length > MAX_OSRM_POINTS) {
-        const step = Math.ceil(keyPoints.length / MAX_OSRM_POINTS);
-        targetPoints = keyPoints.filter((_, idx) => idx % step === 0);
-        if (targetPoints[targetPoints.length - 1] !== keyPoints[keyPoints.length - 1]) {
-          targetPoints.push(keyPoints[keyPoints.length - 1]);
-        }
-      }
-
-      const coordsString = targetPoints.map(c => c.join(',')).join(';');
-      const radiusesParam = targetPoints.map(() => 50).join(';');
-      const osrmUrl = `https://router.project-osrm.org/match/v1/foot/${coordsString}?overview=full&geometries=geojson&radiuses=${radiusesParam}`;
-
-      const osrmResponse = await fetch(osrmUrl);
-      const osrmData = await osrmResponse.json();
-
-      if (osrmData.code === 'Ok' && osrmData.matchings && osrmData.matchings.length > 0) {
-        const matchedGeom = osrmData.matchings[0].geometry;
-        const matchedLatLngs = matchedGeom.coordinates.map(c => [c[1], c[0]]);
-
-        const matchedPolyline = L.polyline(matchedLatLngs, { color: '#16a085', weight: 6, opacity: 0.9 }).addTo(dataLayerGroup);
-        map.fitBounds(matchedPolyline.getBounds(), { padding: [30, 30] });
-        renderStartEnd(matchedLatLngs[0], matchedLatLngs[matchedLatLngs.length - 1]);
-        statusMsg.innerText = '';
-      } else {
-        throw new Error(`OSRMレスポンス: ${osrmData.code}`);
-      }
-    } catch (e) {
-      console.warn('OSRM matching failed:', e);
-      statusMsg.innerText = `マッチング失敗 (通常ライン描画): ${e.message}`;
-      renderCourseData(routePoints, barriers);
-      return;
-    }
-
-    renderBarriers(barriers);
-  }
-
-  // バリア（段差・衝撃点）描画
-  function renderBarriers(barriers) {
-    if (!barriers || barriers.length === 0) return;
-    barriers.forEach(b => {
-      const coords = parsePointGeom(b.geom);
-      if (coords) {
-        L.circleMarker(coords, {
-          radius: 7, fillColor: '#e74c3c', color: '#ffffff', weight: 2, fillOpacity: 0.9
-        })
-        .bindTooltip(`<b>バリア (段差)</b><br>衝撃度: ${Number(b.intensity).toFixed(2)} G`, { direction: 'top' })
-        .addTo(dataLayerGroup);
-      }
-    });
-  }
-
-  // スタート / ゴールマーカー
   function renderStartEnd(startPt, endPt) {
-    if (!startPt || !endPt) return;
-
-    const createLabelIcon = (text, bgColor) => L.divIcon({
-      className: 'custom-label-icon',
-      html: `<div style="background:${bgColor}; color:white; font-weight:bold; width:24px; height:24px; line-height:24px; text-align:center; border-radius:50%; border:2px solid white; box-shadow:0 2px 5px rgba(0,0,0,0.3); font-size:12px;">${text}</div>`,
-      iconSize: [28, 28],
-      iconAnchor: [14, 14]
+    const createIcon = (t, c) => L.divIcon({
+      className: '', html: `<div style="background:${c}; color:white; font-weight:bold; width:24px; height:24px; line-height:24px; text-align:center; border-radius:50%; border:2px solid white;">${t}</div>`,
+      iconSize: [28, 28], iconAnchor: [14, 14]
     });
-
-    L.marker(startPt, { icon: createLabelIcon('S', '#2ecc71') })
-      .bindTooltip('スタート地点', { direction: 'top' })
-      .addTo(dataLayerGroup);
-
-    L.marker(endPt, { icon: createLabelIcon('G', '#e74c3c') })
-      .bindTooltip('ゴール地点', { direction: 'top' })
-      .addTo(dataLayerGroup);
+    L.marker(startPt, { icon: createIcon('S', '#2ecc71') }).addTo(dataLayerGroup);
+    L.marker(endPt, { icon: createIcon('G', '#e74c3c') }).addTo(dataLayerGroup);
   }
 
-  // 凡例
   const legend = L.control({ position: 'bottomright' });
   legend.onAdd = function () {
     const div = L.DomUtil.create('div', 'legend');
     div.innerHTML += '<b>表示凡例</b><br>';
-    div.innerHTML += '<i style="background: #2980b9;"></i>通常ルート (青)<br>';
-    div.innerHTML += '<i style="background: #16a085;"></i>OSRM補正ルート (緑)<br>';
-    div.innerHTML += '<i style="background: #8e44ad;"></i>生軌跡ライン (紫)<br>';
-    div.innerHTML += '<i style="background: #e74c3c;"></i>バリア / 元GPS点線<br>';
-    div.innerHTML += '<i style="background: #2ecc71; border: 1px solid #ccc;"></i>S スタート地点<br>';
-    div.innerHTML += '<i style="background: #e74c3c; border: 1px solid #ccc;"></i>G ゴール地点<br>';
+    div.innerHTML += '<i style="background: #16a085;"></i>クレンジング (OSRM補正)<br>';
+    div.innerHTML += '<i style="background: #8e44ad;"></i>生軌跡ライン<br>';
+    div.innerHTML += '<i style="background: #e74c3c;"></i>バリア (3.5G以上)<br>';
+    div.innerHTML += '<i style="background: #2ecc71; border: 1px solid #ccc;"></i>S スタート / <i style="background: #e74c3c; border: 1px solid #ccc;"></i>G ゴール<br>';
     return div;
   };
   legend.addTo(map);
