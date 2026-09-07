@@ -4,16 +4,19 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>車椅子ルート・バリアマップ＆環境ビューワー</title>
+  
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  
   <style>
     body, html { margin: 0; padding: 0; height: 100%; font-family: 'Helvetica Neue', Arial, sans-serif; }
     #container { display: flex; flex-direction: column; height: 100vh; }
-    #control-panel { padding: 10px 20px; background-color: #2c3e50; color: #ecf0f1; display: flex; gap: 15px; align-items: center; z-index: 1000; flex-wrap: wrap; }
-    .control-group { display: flex; align-items: center; gap: 8px; }
+    #control-panel { padding: 10px 20px; background-color: #2c3e50; color: #ecf0f1; display: flex; flex-direction: column; gap: 10px; z-index: 1000; box-shadow: 0 2px 5px rgba(0,0,0,0.2); }
+    .control-row { display: flex; gap: 20px; align-items: center; flex-wrap: wrap; }
+    .control-group { display: flex; align-items: center; gap: 8px; background-color: rgba(255,255,255,0.1); padding: 5px 10px; border-radius: 6px; }
     select { padding: 6px 12px; border-radius: 4px; border: none; font-size: 14px; cursor: pointer; }
-    input[type=range] { vertical-align: middle; cursor: pointer; }
+    input[type=range] { vertical-align: middle; cursor: pointer; width: 100px; }
     .slider-val { font-weight: bold; min-width: 45px; display: inline-block; text-align: right; }
-    .checkbox-label { font-size: 14px; cursor: pointer; user-select: none; }
+    .checkbox-label { font-size: 14px; cursor: pointer; user-select: none; display: flex; align-items: center; gap: 5px; }
     #map { flex: 1; width: 100%; }
     .legend { background: white; padding: 10px; border-radius: 5px; font-size: 12px; line-height: 18px; color: #333; box-shadow: 0 0 15px rgba(0,0,0,0.2); }
     .legend i { width: 12px; height: 12px; float: left; margin-right: 8px; border-radius: 50%; }
@@ -23,28 +26,53 @@
 
 <div id="container">
   <div id="control-panel">
-    <div class="control-group">
-      <label><strong>対象ルート:</strong></label>
-      <select id="mode-select"><option value="">コース一覧を取得中...</option></select>
+    <!-- 上段：ルート・種別 -->
+    <div class="control-row">
+      <div class="control-group">
+        <label><strong>対象ルート:</strong></label>
+        <select id="mode-select"><option value="">コース一覧を取得中...</option></select>
+      </div>
+      <div class="control-group">
+        <label><strong>データ種別:</strong></label>
+        <select id="datatype-select">
+          <option value="cleansed">クレンジングデータ (OSRM補正済み)</option>
+          <option value="raw">生軌跡ライン (Raw Geometry)</option>
+        </select>
+      </div>
+      <span id="status-msg" style="color: #f1c40f; font-size: 13px; font-weight: bold;"></span>
     </div>
-    <div class="control-group">
-      <label><strong>データ種別:</strong></label>
-      <select id="datatype-select">
-        <option value="cleansed">クレンジングデータ (OSRM補正済み)</option>
-        <option value="raw">生軌跡ライン (Raw Geometry)</option>
-      </select>
+
+    <!-- 下段：バリアフィルタ -->
+    <div class="control-row">
+      <!-- 段差フィルタ (G) -->
+      <div class="control-group">
+        <label class="checkbox-label" style="color: #ff7675;">
+          <input type="checkbox" id="chk-step" checked> <strong>段差(G)表示:</strong>
+        </label>
+        <input type="range" id="step-slider" min="0" max="10" step="0.5" value="3.5">
+        <span class="slider-val"><span id="step-val-text">3.5</span> G</span>
+      </div>
+
+      <!-- ウィリーフィルタ (deg/s) -->
+      <div class="control-group">
+        <label class="checkbox-label" style="color: #fdcb6e;">
+          <input type="checkbox" id="chk-wheelie" checked> <strong>ウィリー表示:</strong>
+        </label>
+        <input type="range" id="wheelie-slider" min="0" max="300" step="10" value="100">
+        <span class="slider-val"><span id="wheelie-val-text">100</span> deg/s</span>
+      </div>
+
+      <!-- 急傾斜フィルタ (度) -->
+      <div class="control-group">
+        <label class="checkbox-label" style="color: #a29bfe;">
+          <input type="checkbox" id="chk-steep" checked> <strong>急傾斜表示:</strong>
+        </label>
+        <input type="range" id="steep-slider" min="0" max="30" step="1" value="5">
+        <span class="slider-val"><span id="steep-val-text">5</span> 度</span>
+      </div>
     </div>
-    <div class="control-group">
-      <label><strong>段差(G)表示:</strong></label>
-      <input type="range" id="barrier-slider" min="0" max="10" step="0.5" value="0.0">
-      <span class="slider-val"><span id="barrier-val-text">0.0</span> G</span>
-    </div>
-    <div class="control-group">
-      <label class="checkbox-label"><input type="checkbox" id="chk-wheelie" checked> ウィリー動作</label>
-      <label class="checkbox-label"><input type="checkbox" id="chk-steep" checked> 急傾斜(5度以上)</label>
-    </div>
-    <span id="status-msg" style="color: #f1c40f; font-size: 13px; font-weight: bold;"></span>
   </div>
+
   <div id="map"></div>
 </div>
 
@@ -52,32 +80,61 @@
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
 <script>
+  // ==========================================
+  // 接続設定（GitHub Actions やデプロイ時に置換）
+  // ==========================================
   const SUPABASE_URL = '__SUPABASE_URL__';
   const SUPABASE_ANON_KEY = '__SUPABASE_ANON_KEY__';
-  const supabaseClient = (SUPABASE_URL.startsWith('__')) ? null : window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+  const supabaseClient = (SUPABASE_URL.startsWith('__')) 
+    ? null 
+    : window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
   const map = L.map('map').setView([33.883, 130.875], 15);
-  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19 }).addTo(map);
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19, attribution: '© OpenStreetMap contributors' }).addTo(map);
 
   const dataLayerGroup = L.layerGroup().addTo(map);
   const barrierLayerGroup = L.layerGroup().addTo(map);
   let currentBarriers = [];
   
+  // UI要素
   const modeSelect = document.getElementById('mode-select');
   const dataTypeSelect = document.getElementById('datatype-select');
-  const barrierSlider = document.getElementById('barrier-slider');
-  const barrierValText = document.getElementById('barrier-val-text');
-  const chkWheelie = document.getElementById('chk-wheelie');
-  const chkSteep = document.getElementById('chk-steep');
   const statusMsg = document.getElementById('status-msg');
 
+  // バリアフィルタUI要素
+  const chkStep = document.getElementById('chk-step');
+  const stepSlider = document.getElementById('step-slider');
+  const stepValText = document.getElementById('step-val-text');
+
+  const chkWheelie = document.getElementById('chk-wheelie');
+  const wheelieSlider = document.getElementById('wheelie-slider');
+  const wheelieValText = document.getElementById('wheelie-val-text');
+
+  const chkSteep = document.getElementById('chk-steep');
+  const steepSlider = document.getElementById('steep-slider');
+  const steepValText = document.getElementById('steep-val-text');
+
+  // イベントリスナー
   modeSelect.addEventListener('change', loadData);
   dataTypeSelect.addEventListener('change', loadData);
-  chkWheelie.addEventListener('change', updateBarrierDisplay);
-  chkSteep.addEventListener('change', updateBarrierDisplay);
-  
-  barrierSlider.addEventListener('input', function() {
-    barrierValText.innerText = parseFloat(this.value).toFixed(1);
+
+  // チェックボックスON/OFFで即時更新
+  [chkStep, chkWheelie, chkSteep].forEach(chk => {
+    chk.addEventListener('change', updateBarrierDisplay);
+  });
+
+  // スライダー操作でテキスト更新＆即時描画
+  stepSlider.addEventListener('input', function() {
+    stepValText.innerText = parseFloat(this.value).toFixed(1);
+    updateBarrierDisplay();
+  });
+  wheelieSlider.addEventListener('input', function() {
+    wheelieValText.innerText = parseInt(this.value, 10);
+    updateBarrierDisplay();
+  });
+  steepSlider.addEventListener('input', function() {
+    steepValText.innerText = parseInt(this.value, 10);
     updateBarrierDisplay();
   });
 
@@ -118,6 +175,7 @@
     
     try {
       const targetCol = (dataTypeSelect.value === 'raw') ? 'raw_geom' : 'cleansed_geom';
+      // barriersは最大10000件程度まで取得範囲を拡張
       const [barriersRes, tripRes] = await Promise.all([
         supabaseClient.from('barriers').select('barrier_type, intensity, geom').eq('trip_id', tripId).limit(10000),
         supabaseClient.from('trips').select(targetCol).eq('trip_id', tripId).single()
@@ -142,6 +200,7 @@
         map.fitBounds(L.polyline(latLngs).getBounds(), { padding: [30, 30] });
         renderStartEnd(latLngs[0], latLngs[latLngs.length - 1]);
       }
+      
       updateBarrierDisplay();
       statusMsg.innerText = '';
     } catch (err) { console.error(err); }
@@ -149,27 +208,46 @@
 
   function updateBarrierDisplay() {
     barrierLayerGroup.clearLayers();
-    const stepThreshold = parseFloat(barrierSlider.value);
-    const showWheelie = chkWheelie.checked;
-    const showSteep = chkSteep.checked;
+
+    // フィルタ設定の取得
+    const isStepOn = chkStep.checked;
+    const stepThresh = parseFloat(stepSlider.value);
+    
+    const isWheelieOn = chkWheelie.checked;
+    const wheelieThresh = parseFloat(wheelieSlider.value);
+    
+    const isSteepOn = chkSteep.checked;
+    const steepThresh = parseFloat(steepSlider.value);
 
     currentBarriers.forEach(b => {
       let draw = false;
-      let color = '#e74c3c'; // デフォルト赤(段差)
+      let color = '';
       let label = '';
+      let radius = 6;
 
-      if (b.barrier_type === 'step' && b.intensity >= stepThreshold) {
-        draw = true; label = `段差衝撃: ${Number(b.intensity).toFixed(2)} G`; color = '#e74c3c';
-      } else if (b.barrier_type === 'wheelie' && showWheelie) {
-        draw = true; label = `ウィリー: ${Number(b.intensity).toFixed(2)} deg/s`; color = '#f39c12'; // オレンジ
-      } else if (b.barrier_type === 'steep_slope' && showSteep) {
-        draw = true; label = `急傾斜: ${Number(b.intensity).toFixed(2)} 度`; color = '#9b59b6'; // 紫
+      if (b.barrier_type === 'step' && isStepOn && b.intensity >= stepThresh) {
+        draw = true;
+        color = '#d63031'; // 赤
+        label = `段差衝撃: ${Number(b.intensity).toFixed(2)} G`;
+        radius = 7;
+      } 
+      else if (b.barrier_type === 'wheelie' && isWheelieOn && Math.abs(b.intensity) >= wheelieThresh) {
+        draw = true;
+        color = '#e17055'; // オレンジ
+        label = `ウィリー: ${Number(Math.abs(b.intensity)).toFixed(1)} deg/s`;
+        radius = 6;
+      } 
+      else if (b.barrier_type === 'steep_slope' && isSteepOn && b.intensity >= steepThresh) {
+        draw = true;
+        color = '#6c5ce7'; // 紫
+        label = `急傾斜: ${Number(b.intensity).toFixed(1)} 度`;
+        radius = 5;
       }
 
       if (draw) {
         const coords = parsePointGeom(b.geom);
         if (coords) {
-          L.circleMarker(coords, { radius: 6, fillColor: color, color: '#ffffff', weight: 2, fillOpacity: 0.9 })
+          L.circleMarker(coords, { radius: radius, fillColor: color, color: '#ffffff', weight: 1.5, fillOpacity: 0.85 })
            .bindTooltip(label, { direction: 'top' }).addTo(barrierLayerGroup);
         }
       }
@@ -177,9 +255,9 @@
   }
 
   function renderStartEnd(startPt, endPt) {
-    const createIcon = (t, c) => L.divIcon({ className: '', html: `<div style="background:${c}; color:white; font-weight:bold; width:24px; height:24px; line-height:24px; text-align:center; border-radius:50%; border:2px solid white;">${t}</div>`, iconSize: [28, 28], iconAnchor: [14, 14] });
-    L.marker(startPt, { icon: createIcon('S', '#2ecc71') }).addTo(dataLayerGroup);
-    L.marker(endPt, { icon: createIcon('G', '#e74c3c') }).addTo(dataLayerGroup);
+    const createIcon = (t, c) => L.divIcon({ className: '', html: `<div style="background:${c}; color:white; font-weight:bold; width:24px; height:24px; line-height:24px; text-align:center; border-radius:50%; border:2px solid white; box-shadow:0 2px 5px rgba(0,0,0,0.3);">${t}</div>`, iconSize: [28, 28], iconAnchor: [14, 14] });
+    L.marker(startPt, { icon: createIcon('S', '#00b894') }).addTo(dataLayerGroup);
+    L.marker(endPt, { icon: createIcon('G', '#d63031') }).addTo(dataLayerGroup);
   }
 
   const legend = L.control({ position: 'bottomright' });
@@ -187,9 +265,9 @@
     const div = L.DomUtil.create('div', 'legend');
     div.innerHTML += '<b>表示凡例</b><br>';
     div.innerHTML += '<i style="background: #16a085;"></i>ルート (OSRM補正)<br>';
-    div.innerHTML += '<i style="background: #e74c3c;"></i>段差・衝撃 (赤)<br>';
-    div.innerHTML += '<i style="background: #f39c12;"></i>ウィリー動作 (オレンジ)<br>';
-    div.innerHTML += '<i style="background: #9b59b6;"></i>急傾斜 (紫)<br>';
+    div.innerHTML += '<i style="background: #d63031;"></i>段差・衝撃 (赤)<br>';
+    div.innerHTML += '<i style="background: #e17055;"></i>ウィリー動作 (オレンジ)<br>';
+    div.innerHTML += '<i style="background: #6c5ce7;"></i>急傾斜 (紫)<br>';
     return div;
   };
   legend.addTo(map);
