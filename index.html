@@ -10,13 +10,11 @@
   <style>
     body, html { margin: 0; padding: 0; height: 100%; font-family: 'Helvetica Neue', Arial, sans-serif; }
     #container { display: flex; flex-direction: column; height: 100vh; }
-    #control-panel { padding: 10px 20px; background-color: #2c3e50; color: #ecf0f1; display: flex; gap: 15px; align-items: center; z-index: 1000; }
+    #control-panel { padding: 10px 20px; background-color: #2c3e50; color: #ecf0f1; display: flex; gap: 15px; align-items: center; z-index: 1000; flex-wrap: wrap; }
     .control-group { display: flex; align-items: center; gap: 8px; }
-    select, button { padding: 6px 12px; border-radius: 4px; border: none; font-size: 14px; }
-    button { background-color: #3498db; color: white; cursor: pointer; font-weight: bold; }
-    button:hover { background-color: #2980b9; }
+    select { padding: 6px 12px; border-radius: 4px; border: none; font-size: 14px; cursor: pointer; }
     #map { flex: 1; width: 100%; }
-    .legend { background: white; padding: 10px; border-radius: 5px; font-size: 12px; line-height: 18px; color: #333; }
+    .legend { background: white; padding: 10px; border-radius: 5px; font-size: 12px; line-height: 18px; color: #333; box-shadow: 0 0 15px rgba(0,0,0,0.2); }
     .legend i { width: 12px; height: 12px; float: left; margin-right: 8px; border-radius: 50%; }
   </style>
 </head>
@@ -24,6 +22,13 @@
 
 <div id="container">
   <div id="control-panel">
+    <div class="control-group">
+      <label><strong>対象ルート:</strong></label>
+      <select id="mode-select">
+        <option value="">コース一覧を取得中...</option>
+      </select>
+    </div>
+
     <div class="control-group">
       <label><strong>データ種別:</strong></label>
       <select id="datatype-select">
@@ -33,14 +38,16 @@
     </div>
 
     <div class="control-group">
-      <label><strong>対象ルート:</strong></label>
-      <select id="mode-select">
-        <option value="">コース一覧を取得中...</option>
+      <label><strong>バリア表示:</strong></label>
+      <select id="barrier-filter">
+        <option value="3.5">3.5G以上 (すべて表示)</option>
+        <option value="4.0">4.0G以上 (中段差のみ)</option>
+        <option value="5.0">5.0G以上 (大段差のみ)</option>
+        <option value="none">非表示</option>
       </select>
     </div>
 
-    <button id="btn-load">データを読み込み</button>
-    <span id="status-msg" style="color: #f1c40f; font-size: 13px;"></span>
+    <span id="status-msg" style="color: #f1c40f; font-size: 13px; font-weight: bold;"></span>
   </div>
 
   <div id="map"></div>
@@ -50,6 +57,9 @@
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
 <script>
+  // ==========================================
+  // 接続設定（GitHub Actions やデプロイ時に置換）
+  // ==========================================
   const SUPABASE_URL = '__SUPABASE_URL__';
   const SUPABASE_ANON_KEY = '__SUPABASE_ANON_KEY__';
 
@@ -58,57 +68,74 @@
     : window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
   const map = L.map('map').setView([33.883, 130.875], 15);
-  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19 }).addTo(map);
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19, attribution: '© OpenStreetMap contributors' }).addTo(map);
 
   const dataLayerGroup = L.layerGroup().addTo(map);
-  const dataTypeSelect = document.getElementById('datatype-select');
 
+  // UI要素の取得
+  const modeSelect = document.getElementById('mode-select');
+  const dataTypeSelect = document.getElementById('datatype-select');
+  const barrierFilter = document.getElementById('barrier-filter');
+  const statusMsg = document.getElementById('status-msg');
+
+  // イベントリスナーの登録（変更時に自動読み込み）
+  modeSelect.addEventListener('change', loadData);
+  dataTypeSelect.addEventListener('change', loadData);
+  barrierFilter.addEventListener('change', loadData);
+
+  // コース一覧の取得と初期化
   async function fetchTripList() {
-    const selectElem = document.getElementById('mode-select');
-    if (!supabaseClient) return;
+    if (!supabaseClient) {
+      modeSelect.innerHTML = '<option value="">(Secrets/Variables未設定)</option>';
+      return;
+    }
 
     try {
-      const { data: trips } = await supabaseClient
+      const { data: trips, error } = await supabaseClient
         .from('trips')
         .select('trip_id, title, measured_date')
         .order('created_at', { ascending: false });
 
-      selectElem.innerHTML = '';
+      if (error) throw error;
+
+      modeSelect.innerHTML = '';
       if (trips && trips.length > 0) {
         trips.forEach(t => {
           const opt = document.createElement('option');
           opt.value = t.trip_id;
           opt.textContent = `ID:${t.trip_id} | ${t.measured_date} | ${t.title}`;
-          selectElem.appendChild(opt);
+          modeSelect.appendChild(opt);
         });
+        // 最初のリストが読み込まれたら自動でデータをロード
         loadData();
+      } else {
+        modeSelect.innerHTML = '<option value="">コースが見つかりません</option>';
       }
     } catch (err) {
       console.error(err);
+      modeSelect.innerHTML = '<option value="">一覧取得エラー</option>';
     }
   }
 
+  // データの読み込みと描画
   async function loadData() {
-    const tripId = document.getElementById('mode-select').value;
-    const statusMsg = document.getElementById('status-msg');
-    if (!tripId) return;
+    const tripId = modeSelect.value;
+    if (!tripId || !supabaseClient) return;
 
     dataLayerGroup.clearLayers();
-    statusMsg.innerText = 'データを取得中...';
+    statusMsg.innerText = '更新中...';
     statusMsg.style.color = '#f1c40f';
 
     try {
-      const { data: barriers } = await supabaseClient
-        .from('barriers')
-        .select('intensity, geom')
-        .eq('trip_id', tripId).limit(5000);
-
+      // バリアとルートデータを並行取得
       const targetCol = (dataTypeSelect.value === 'raw') ? 'raw_geom' : 'cleansed_geom';
-      const { data: tripData } = await supabaseClient
-        .from('trips')
-        .select(targetCol)
-        .eq('trip_id', tripId)
-        .single();
+      const [barriersRes, tripRes] = await Promise.all([
+        supabaseClient.from('barriers').select('intensity, geom').eq('trip_id', tripId).limit(5000),
+        supabaseClient.from('trips').select(targetCol).eq('trip_id', tripId).single()
+      ]);
+
+      const barriers = barriersRes.data || [];
+      const tripData = tripRes.data;
 
       if (!tripData || !tripData[targetCol]) {
         statusMsg.innerText = 'データが存在しません。';
@@ -116,10 +143,9 @@
         return;
       }
 
-      statusMsg.innerText = '';
+      // ルートの描画
       const rawGeom = tripData[targetCol];
       let coordsArray = [];
-      
       if (rawGeom.type === 'LineString') {
         coordsArray = rawGeom.coordinates;
       } else if (typeof rawGeom === 'string') {
@@ -128,56 +154,64 @@
       }
 
       if (coordsArray.length > 0) {
-        // LineString描画 (色: クレンジング時は緑、Raw時は紫)
         const lineColor = (dataTypeSelect.value === 'raw') ? '#8e44ad' : '#16a085';
         const latLngs = coordsArray.map(c => [c[1], c[0]]);
         const polyline = L.polyline(latLngs, { color: lineColor, weight: 6, opacity: 0.9 }).addTo(dataLayerGroup);
         map.fitBounds(polyline.getBounds(), { padding: [30, 30] });
 
-        // S/Gマーカー
         renderStartEnd(latLngs[0], latLngs[latLngs.length - 1]);
       }
 
-      // バリア描画
-      if (barriers) {
+      // バリアのフィルタリングと描画
+      const barrierFilterVal = barrierFilter.value;
+      if (barriers.length > 0 && barrierFilterVal !== 'none') {
+        const threshold = parseFloat(barrierFilterVal);
         barriers.forEach(b => {
-          const match = (typeof b.geom === 'string') ? b.geom.match(/POINT\s*\(\s*([-\d.]+)\s+([-\d.]+)\s*\)/i) : null;
-          if (match) {
-            L.circleMarker([parseFloat(match[2]), parseFloat(match[1])], {
-              radius: 7, fillColor: '#e74c3c', color: '#ffffff', weight: 2, fillOpacity: 0.9
-            })
-            .bindTooltip(`衝撃度: ${Number(b.intensity).toFixed(2)} G`, { direction: 'top' })
-            .addTo(dataLayerGroup);
+          if (b.intensity >= threshold) {
+            const match = (typeof b.geom === 'string') ? b.geom.match(/POINT\s*\(\s*([-\d.]+)\s+([-\d.]+)\s*\)/i) : null;
+            if (match) {
+              L.circleMarker([parseFloat(match[2]), parseFloat(match[1])], {
+                radius: 7, fillColor: '#e74c3c', color: '#ffffff', weight: 2, fillOpacity: 0.9
+              })
+              .bindTooltip(`衝撃度: ${Number(b.intensity).toFixed(2)} G`, { direction: 'top' })
+              .addTo(dataLayerGroup);
+            }
           }
         });
       }
+
+      statusMsg.innerText = '';
     } catch (err) {
-      statusMsg.innerText = 'エラー発生';
+      console.error(err);
+      statusMsg.innerText = '読み込みエラー';
+      statusMsg.style.color = '#e74c3c';
     }
   }
 
+  // スタート・ゴールマーカーの生成
   function renderStartEnd(startPt, endPt) {
     const createIcon = (t, c) => L.divIcon({
-      className: '', html: `<div style="background:${c}; color:white; font-weight:bold; width:24px; height:24px; line-height:24px; text-align:center; border-radius:50%; border:2px solid white;">${t}</div>`,
+      className: '', html: `<div style="background:${c}; color:white; font-weight:bold; width:24px; height:24px; line-height:24px; text-align:center; border-radius:50%; border:2px solid white; box-shadow:0 2px 5px rgba(0,0,0,0.3);">${t}</div>`,
       iconSize: [28, 28], iconAnchor: [14, 14]
     });
-    L.marker(startPt, { icon: createIcon('S', '#2ecc71') }).addTo(dataLayerGroup);
-    L.marker(endPt, { icon: createIcon('G', '#e74c3c') }).addTo(dataLayerGroup);
+    L.marker(startPt, { icon: createIcon('S', '#2ecc71') }).bindTooltip('スタート', { direction: 'top' }).addTo(dataLayerGroup);
+    L.marker(endPt, { icon: createIcon('G', '#e74c3c') }).bindTooltip('ゴール', { direction: 'top' }).addTo(dataLayerGroup);
   }
 
+  // 凡例の追加
   const legend = L.control({ position: 'bottomright' });
   legend.onAdd = function () {
     const div = L.DomUtil.create('div', 'legend');
     div.innerHTML += '<b>表示凡例</b><br>';
     div.innerHTML += '<i style="background: #16a085;"></i>クレンジング (OSRM補正)<br>';
     div.innerHTML += '<i style="background: #8e44ad;"></i>生軌跡ライン<br>';
-    div.innerHTML += '<i style="background: #e74c3c;"></i>バリア (3.5G以上)<br>';
+    div.innerHTML += '<i style="background: #e74c3c;"></i>バリア (衝撃検知)<br>';
     div.innerHTML += '<i style="background: #2ecc71; border: 1px solid #ccc;"></i>S スタート / <i style="background: #e74c3c; border: 1px solid #ccc;"></i>G ゴール<br>';
     return div;
   };
   legend.addTo(map);
 
-  document.getElementById('btn-load').addEventListener('click', loadData);
+  // 初期ロード
   fetchTripList();
 </script>
 
