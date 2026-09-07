@@ -41,8 +41,8 @@
 
     <div class="control-group">
       <label><strong>バリア表示:</strong></label>
-      <input type="range" id="barrier-slider" min="0" max="10" step="0.5" value="3.5">
-      <span class="slider-val"><span id="barrier-val-text">3.5</span> G</span>
+      <input type="range" id="barrier-slider" min="0" max="10" step="0.5" value="0.0">
+      <span class="slider-val"><span id="barrier-val-text">0.0</span> G</span>
       <span style="font-size: 11px; margin-left: 5px; color: #bdc3c7;">(以上を表示)</span>
     </div>
 
@@ -72,7 +72,7 @@
   const dataLayerGroup = L.layerGroup().addTo(map);
   const barrierLayerGroup = L.layerGroup().addTo(map);
 
-  // グローバル変数に取得したデータを保持
+  // グローバル変数に取得したデータを保持（API通信削減のため）
   let currentBarriers = [];
   
   // UI要素の取得
@@ -86,11 +86,24 @@
   modeSelect.addEventListener('change', loadData);
   dataTypeSelect.addEventListener('change', loadData);
   
-  // スライダーを動かしたとき（即時更新）
+  // スライダー操作イベント（APIを叩かず画面上のマーカーのみ再描画）
   barrierSlider.addEventListener('input', function() {
     barrierValText.innerText = parseFloat(this.value).toFixed(1);
     updateBarrierDisplay();
   });
+
+  // GeoJSON / WKT どちらの形式からでも [lat, lon] を抽出するヘルパー関数
+  function parsePointGeom(geom) {
+    if (!geom) return null;
+    if (geom.type === 'Point' && Array.isArray(geom.coordinates)) {
+      return [geom.coordinates[1], geom.coordinates[0]];
+    }
+    if (typeof geom === 'string') {
+      const match = geom.match(/POINT\s*\(\s*([-\d.]+)\s+([-\d.]+)\s*\)/i);
+      if (match) return [parseFloat(match[2]), parseFloat(match[1])];
+    }
+    return null;
+  }
 
   // コース一覧の取得と初期化
   async function fetchTripList() {
@@ -138,6 +151,8 @@
 
     try {
       const targetCol = (dataTypeSelect.value === 'raw') ? 'raw_geom' : 'cleansed_geom';
+      
+      // ルートとバリアを一括並行取得
       const [barriersRes, tripRes] = await Promise.all([
         supabaseClient.from('barriers').select('intensity, geom').eq('trip_id', tripId).limit(5000),
         supabaseClient.from('trips').select(targetCol).eq('trip_id', tripId).single()
@@ -171,6 +186,7 @@
         renderStartEnd(latLngs[0], latLngs[latLngs.length - 1]);
       }
 
+      // メモリ上のバリアデータから描画
       updateBarrierDisplay();
       statusMsg.innerText = '';
     } catch (err) {
@@ -188,9 +204,9 @@
     if (currentBarriers.length > 0) {
       currentBarriers.forEach(b => {
         if (b.intensity >= threshold) {
-          const match = (typeof b.geom === 'string') ? b.geom.match(/POINT\s*\(\s*([-\d.]+)\s+([-\d.]+)\s*\)/i) : null;
-          if (match) {
-            L.circleMarker([parseFloat(match[2]), parseFloat(match[1])], {
+          const coords = parsePointGeom(b.geom);
+          if (coords) {
+            L.circleMarker(coords, {
               radius: 7, fillColor: '#e74c3c', color: '#ffffff', weight: 2, fillOpacity: 0.9
             })
             .bindTooltip(`衝撃度: ${Number(b.intensity).toFixed(2)} G`, { direction: 'top' })
