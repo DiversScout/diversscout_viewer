@@ -148,23 +148,33 @@
     return null;
   }
 
-  async function fetchTripList() {
+async function fetchTripList() {
     if (!supabaseClient) return;
     try {
-      const { data: trips } = await supabaseClient.from('trips').select('trip_id, title, measured_date').order('created_at', { ascending: false });
+      // ★ select に event_name を追加してDBから取得する
+      const { data: trips } = await supabaseClient
+        .from('trips')
+        .select('trip_id, title, measured_date, event_name')
+        .order('created_at', { ascending: false });
+        
       modeSelect.innerHTML = '';
       if (trips && trips.length > 0) {
         trips.forEach(t => {
           const opt = document.createElement('option');
           opt.value = t.trip_id;
-          opt.textContent = `ID:${t.trip_id} | ${t.measured_date} | ${t.title}`;
+          
+          // ★ event_name に値があればイベント名を、無ければ title (ファイル名) を採用
+          const displayName = t.event_name ? t.event_name : t.title;
+          
+          opt.textContent = `ID:${t.trip_id} | ${t.measured_date} | ${displayName}`;
           modeSelect.appendChild(opt);
         });
         loadData();
       }
-    } catch (err) { console.error(err); }
+    } catch (err) { 
+      console.error(err); 
+    }
   }
-
   async function loadData() {
     const tripId = modeSelect.value;
     if (!tripId || !supabaseClient) return;
