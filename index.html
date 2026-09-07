@@ -216,7 +216,7 @@
     }
   }
 
-  // 2. データ読み込みメイン
+// 2. データ読み込みメイン
   async function loadData() {
     const dataType = dataTypeSelect.value;
     const isOsmMatchEnabled = chkOsmMatch.checked;
@@ -230,6 +230,15 @@
     statusMsg.style.color = '#f1c40f';
 
     try {
+      // ★ どちらのモードでも必ずバリア（段差）情報を取得する
+      const { data: barriers, error: barriersErr } = await supabaseClient
+        .from('barriers')
+        .select('barrier_id, barrier_type, intensity, geom')
+        .eq('trip_id', tripId)
+        .limit(5000);
+
+      if (barriersErr) console.warn("バリア情報の取得に失敗:", barriersErr);
+
       if (dataType === 'raw') {
         const { data: tripData, error } = await supabaseClient
           .from('trips')
@@ -244,28 +253,21 @@
         }
 
         renderRawLineString(tripData.raw_geom);
+        renderBarriers(barriers || []); // ★ 生データ表示中もバリアを描画
         statusMsg.innerText = '';
       } 
       else if (dataType === 'cleansed') {
-        const [pointsRes, barriersRes] = await Promise.all([
-          supabaseClient
-            .from('cleansed_route_points')
-            .select('jst, calculated_slope, geom')
-            .eq('trip_id', tripId)
-            .order('jst', { ascending: true }),
-          supabaseClient
-            .from('barriers')
-            .select('barrier_id, barrier_type, intensity, geom')
-            .eq('trip_id', tripId)
-        ]);
+        // ★ 取得上限を1000件から20000件に引き上げ、ルート全体を描画できるようにする
+        const { data: routePoints, error: pointsErr } = await supabaseClient
+          .from('cleansed_route_points')
+          .select('jst, calculated_slope, geom')
+          .eq('trip_id', tripId)
+          .order('jst', { ascending: true })
+          .limit(20000);
 
-        if (pointsRes.error) throw pointsRes.error;
-        if (barriersRes.error) throw barriersRes.error;
+        if (pointsErr) throw pointsErr;
 
-        const routePoints = pointsRes.data || [];
-        const barriers = barriersRes.data || [];
-
-        if (routePoints.length === 0) {
+        if (!routePoints || routePoints.length === 0) {
           statusMsg.innerText = 'クレンジングデータが存在しません。「生軌跡ライン」を選択してください。';
           statusMsg.style.color = '#e74c3c';
           return;
@@ -273,9 +275,9 @@
 
         statusMsg.innerText = '';
         if (isOsmMatchEnabled) {
-          await renderOSRMMatchedData(routePoints, barriers);
+          await renderOSRMMatchedData(routePoints, barriers || []);
         } else {
-          renderCourseData(routePoints, barriers);
+          renderCourseData(routePoints, barriers || []);
         }
       }
     } catch (err) {
@@ -284,7 +286,6 @@
       statusMsg.style.color = '#e74c3c';
     }
   }
-
   // GeoJSON / PostGIS Point から [lat, lon] を抽出するヘルパー
   function parsePointGeom(geom) {
     if (!geom) return null;
