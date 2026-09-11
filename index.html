@@ -42,7 +42,7 @@
       <span id="status-msg" style="color: #f1c40f; font-size: 13px; font-weight: bold;"></span>
     </div>
 
-    <!-- 下段：バリアフィルタ -->
+    <!-- 中段：バリアフィルタ -->
     <div class="control-row">
       <!-- 段差フィルタ (G) -->
       <div class="control-group">
@@ -69,6 +69,15 @@
         </label>
         <input type="range" id="steep-slider" min="0" max="30" step="1" value="5">
         <span class="slider-val"><span id="steep-val-text">5</span> 度</span>
+      </div>
+    </div>
+    
+    <!-- 下段：デバイス・その他 -->
+    <div class="control-row">
+      <div class="control-group">
+        <label class="checkbox-label" style="color: #74b9ff;">
+          <input type="checkbox" id="chk-device" checked> <strong>デバイス現在位置表示</strong>
+        </label>
       </div>
     </div>
   </div>
@@ -98,7 +107,7 @@
     maxZoom: 19, 
     attribution: '© OpenStreetMap contributors' 
   });
-  // 2. OpenTopoMap (等高線と陰影が入った高解像度マップ。ズームレベル17まで対応)
+  // 2. OpenTopoMap
   const topoLayer = L.tileLayer('https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png', {
     maxZoom: 17,
     attribution: 'Map data: © OpenStreetMap contributors, SRTM | Map style: © OpenTopoMap (CC-BY-SA)'
@@ -108,8 +117,7 @@
     maxZoom: 18, 
     attribution: '<a href="https://maps.gsi.go.jp/development/ichiran.html" target="_blank">国土地理院</a>' 
   });
-  // 4. 国土地理院 ハイブリッド (淡色地図 + 陰影起伏図)
-  // 淡色地図（ズーム18まで）をベースに、陰影起伏図（ズーム15まで）を透過して重ねる
+  // 4. 国土地理院 ハイブリッド
   const gsiPaleLayer = L.tileLayer('https://cyberjapandata.gsi.go.jp/xyz/pale/{z}/{x}/{y}.png', { maxZoom: 18 });
   const gsiHillshadeLayer = L.tileLayer('https://cyberjapandata.gsi.go.jp/xyz/hillshademap/{z}/{x}/{y}.png', { maxZoom: 15, opacity: 0.5 });
   const gsiHybridLayer = L.layerGroup([gsiPaleLayer, gsiHillshadeLayer], {
@@ -117,7 +125,6 @@
   });
   // デフォルトでOSMを表示
   osmLayer.addTo(map);
-  // 右上にベースマップ切り替えコントロールを追加
   L.control.layers({
     "OpenStreetMap (標準)": osmLayer,
     "OpenTopoMap (等高線・陰影)": topoLayer,
@@ -127,14 +134,17 @@
   
   const dataLayerGroup = L.layerGroup().addTo(map);
   const barrierLayerGroup = L.layerGroup().addTo(map);
+  const deviceLayerGroup = L.layerGroup().addTo(map); // デバイス用レイヤーグループ
+
   let currentBarriers = [];
+  let currentDevices = []; // デバイスデータ保持用
   
   // UI要素
   const modeSelect = document.getElementById('mode-select');
   const dataTypeSelect = document.getElementById('datatype-select');
   const statusMsg = document.getElementById('status-msg');
 
-  // バリアフィルタUI要素
+  // バリア・デバイスフィルタUI要素
   const chkStep = document.getElementById('chk-step');
   const stepSlider = document.getElementById('step-slider');
   const stepValText = document.getElementById('step-val-text');
@@ -147,6 +157,8 @@
   const steepSlider = document.getElementById('steep-slider');
   const steepValText = document.getElementById('steep-val-text');
 
+  const chkDevice = document.getElementById('chk-device');
+
   // イベントリスナー
   modeSelect.addEventListener('change', loadData);
   dataTypeSelect.addEventListener('change', loadData);
@@ -155,6 +167,7 @@
   [chkStep, chkWheelie, chkSteep].forEach(chk => {
     chk.addEventListener('change', updateBarrierDisplay);
   });
+  chkDevice.addEventListener('change', updateDeviceDisplay);
 
   // スライダー操作でテキスト更新＆即時描画
   stepSlider.addEventListener('input', function() {
@@ -180,10 +193,9 @@
     return null;
   }
 
-async function fetchTripList() {
+  async function fetchTripList() {
     if (!supabaseClient) return;
     try {
-      // ★ select に event_name を追加してDBから取得する
       const { data: trips } = await supabaseClient
         .from('trips')
         .select('trip_id, title, measured_date, event_name')
@@ -195,7 +207,6 @@ async function fetchTripList() {
           const opt = document.createElement('option');
           opt.value = t.trip_id;
           
-          // ★ event_name に値があればイベント名を、無ければ title (ファイル名) を採用
           const displayName = t.event_name ? t.event_name : t.title;
           
           opt.textContent = `ID:${t.trip_id} | ${t.measured_date} | ${displayName}`;
@@ -207,6 +218,24 @@ async function fetchTripList() {
       console.error(err); 
     }
   }
+
+  async function fetchDeviceStatus() {
+    if (!supabaseClient) return;
+    try {
+      const { data, error } = await supabaseClient
+        .from('device_current_status')
+        .select('*');
+      
+      if (error) throw error;
+      if (data) {
+        currentDevices = data;
+        updateDeviceDisplay();
+      }
+    } catch (err) {
+      console.error('デバイスステータスの取得に失敗しました:', err);
+    }
+  }
+
   async function loadData() {
     const tripId = modeSelect.value;
     if (!tripId || !supabaseClient) return;
@@ -217,7 +246,6 @@ async function fetchTripList() {
     
     try {
       const targetCol = (dataTypeSelect.value === 'raw') ? 'raw_geom' : 'cleansed_geom';
-      // barriersは最大10000件程度まで取得範囲を拡張
       const [barriersRes, tripRes] = await Promise.all([
         supabaseClient.from('barriers').select('barrier_type, intensity, geom').eq('trip_id', tripId).limit(10000),
         supabaseClient.from('trips').select(targetCol).eq('trip_id', tripId).single()
@@ -251,7 +279,6 @@ async function fetchTripList() {
   function updateBarrierDisplay() {
     barrierLayerGroup.clearLayers();
 
-    // フィルタ設定の取得
     const isStepOn = chkStep.checked;
     const stepThresh = parseFloat(stepSlider.value);
     
@@ -296,6 +323,37 @@ async function fetchTripList() {
     });
   }
 
+  function updateDeviceDisplay() {
+    deviceLayerGroup.clearLayers();
+    if (!chkDevice.checked) return;
+
+    currentDevices.forEach(d => {
+      if (d.lat == null || d.lon == null) return;
+      
+      const tooltipHtml = `
+        <div style="font-size: 13px; line-height: 1.5;">
+          <b>Device ID:</b> ${d.device_id}<br>
+          <b>Name:</b> ${d.device_name || 'N/A'}<br>
+          <b>Status:</b> ${d.status}<br>
+          <b>Temp:</b> ${d.temperature} ℃<br>
+          <b>Fixed:</b> ${d.is_fixed}<br>
+          <b>JST:</b> ${new Date(d.jst).toLocaleString()}<br>
+          <b>Updated:</b> ${new Date(d.updated_at).toLocaleString()}
+        </div>
+      `;
+      
+      L.circleMarker([d.lat, d.lon], { 
+        radius: 8, 
+        fillColor: '#0984e3', 
+        color: '#ffffff', 
+        weight: 2, 
+        fillOpacity: 0.9 
+      })
+      .bindTooltip(tooltipHtml, { direction: 'top' })
+      .addTo(deviceLayerGroup);
+    });
+  }
+
   function renderStartEnd(startPt, endPt) {
     const createIcon = (t, c) => L.divIcon({ className: '', html: `<div style="background:${c}; color:white; font-weight:bold; width:24px; height:24px; line-height:24px; text-align:center; border-radius:50%; border:2px solid white; box-shadow:0 2px 5px rgba(0,0,0,0.3);">${t}</div>`, iconSize: [28, 28], iconAnchor: [14, 14] });
     L.marker(startPt, { icon: createIcon('S', '#00b894') }).addTo(dataLayerGroup);
@@ -310,11 +368,14 @@ async function fetchTripList() {
     div.innerHTML += '<i style="background: #d63031;"></i>段差・衝撃 (赤)<br>';
     div.innerHTML += '<i style="background: #e17055;"></i>ウィリー動作 (オレンジ)<br>';
     div.innerHTML += '<i style="background: #6c5ce7;"></i>急傾斜 (紫)<br>';
+    div.innerHTML += '<i style="background: #0984e3;"></i>デバイス位置 (青)<br>';
     return div;
   };
   legend.addTo(map);
 
+  // 初期データ読み込み
   fetchTripList();
+  fetchDeviceStatus();
 </script>
 </body>
 </html>
