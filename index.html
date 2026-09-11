@@ -10,7 +10,6 @@
   
   <style>
     :root {
-      /* ネオンカラーパレット */
       --neon-cyan: #0ff;
       --neon-magenta: #f0f;
       --neon-yellow: #ff0;
@@ -34,7 +33,7 @@
       color: var(--neon-cyan);
     }
 
-    /* CRTスキャンライン & ビネット効果 (クリックイベントを貫通させる) */
+    /* CRTスキャンライン & ビネット効果 */
     body::before {
       content: ""; position: absolute; top: 0; left: 0; width: 100vw; height: 100vh;
       box-shadow: inset 0 0 150px rgba(0,0,0,0.9);
@@ -47,47 +46,67 @@
       z-index: 9999; pointer-events: none;
     }
 
-    /* マップ領域 */
     #map { 
       position: absolute; top: 0; left: 0; width: 100vw; height: 100vh; z-index: 1; 
       background: #000;
     }
 
-    /* マップを強制的にダーク・サイバー風に加工 */
     .leaflet-tile-pane {
       filter: invert(100%) sepia(20%) hue-rotate(180deg) brightness(70%) contrast(150%);
     }
 
-    /* SVG（ルートやマーカー）を光らせる */
     .leaflet-overlay-pane svg path {
       filter: drop-shadow(0 0 5px rgba(255, 255, 255, 0.5));
     }
 
-    /* SFコンソール風コントロールパネル */
-    #control-panel { 
-      position: absolute; top: 20px; left: 20px; z-index: 1000; 
-      width: 320px; max-height: calc(100vh - 40px); overflow-y: auto;
+    /* パネル共通スタイル */
+    .cyber-panel {
       background: var(--bg-dark);
       border: 2px solid var(--neon-cyan);
       box-shadow: 0 0 15px var(--neon-cyan), inset 0 0 15px rgba(0, 255, 255, 0.2);
-      padding: 20px; 
-      display: flex; flex-direction: column; gap: 20px;
+      padding: 15px;
     }
-    #control-panel::-webkit-scrollbar { width: 4px; }
-    #control-panel::-webkit-scrollbar-thumb { background: var(--neon-cyan); box-shadow: 0 0 5px var(--neon-cyan); }
+
+    /* 折りたたみヘッダー */
+    .panel-header {
+      display: flex; justify-content: space-between; align-items: center;
+      cursor: pointer;
+      border-bottom: 2px solid var(--neon-cyan); padding-bottom: 5px;
+      margin-bottom: 10px;
+      transition: background 0.2s;
+    }
+    .panel-header:hover { background: rgba(0, 255, 255, 0.15); }
+    .panel-header h2 { 
+      margin: 0; font-size: 14px; font-weight: 900; letter-spacing: 0.1em; 
+      text-shadow: 0 0 8px var(--neon-cyan);
+    }
+    .toggle-icon { font-weight: bold; text-shadow: 0 0 5px var(--neon-cyan); }
+    
+    .collapsed { display: none !important; }
+
+    /* コントロールパネル */
+    #control-panel { 
+      position: absolute; top: 20px; left: 20px; z-index: 1000; 
+      width: 320px; 
+    }
+    #control-content {
+      display: flex; flex-direction: column; gap: 20px;
+      max-height: calc(100vh - 120px); overflow-y: auto; padding-right: 5px;
+    }
+    #control-content::-webkit-scrollbar { width: 4px; }
+    #control-content::-webkit-scrollbar-thumb { background: var(--neon-cyan); box-shadow: 0 0 5px var(--neon-cyan); }
 
     .panel-section { display: flex; flex-direction: column; gap: 12px; }
     .panel-section h3 { 
-      margin: 0; font-size: 14px; font-weight: 700; letter-spacing: 0.1em; 
-      border-bottom: 2px solid var(--neon-cyan); padding-bottom: 4px;
-      text-shadow: 0 0 8px var(--neon-cyan);
+      margin: 0; font-size: 13px; font-weight: 700; letter-spacing: 0.1em; 
+      border-bottom: 1px dashed var(--neon-cyan); padding-bottom: 4px;
+      text-shadow: 0 0 5px var(--neon-cyan); opacity: 0.8;
     }
     
     .control-group { display: flex; flex-direction: column; gap: 6px; }
     .control-header { display: flex; justify-content: space-between; align-items: center; }
     .control-label { font-size: 13px; display: flex; align-items: center; gap: 8px; text-shadow: 0 0 5px currentColor; }
 
-    /* レトロフューチャーなセレクトボックス */
     select { 
       width: 100%; padding: 8px 10px; font-size: 12px; font-family: 'Orbitron', sans-serif;
       background: rgba(0,0,0,0.8); color: var(--neon-cyan);
@@ -98,13 +117,11 @@
     select:hover { background: rgba(0, 255, 255, 0.15); }
     select option { background: #000; color: var(--neon-cyan); }
 
-    /* サイバーチェックボックス */
     .cyber-checkbox { position: relative; display: inline-block; width: 22px; height: 22px; cursor: pointer; }
     .cyber-checkbox input { opacity: 0; width: 0; height: 0; }
     .checkmark {
       position: absolute; top: 0; left: 0; right: 0; bottom: 0;
-      border: 2px solid currentColor; box-shadow: 0 0 8px currentColor;
-      transition: 0.2s;
+      border: 2px solid currentColor; box-shadow: 0 0 8px currentColor; transition: 0.2s;
     }
     .cyber-checkbox input:checked ~ .checkmark { background-color: currentColor; box-shadow: 0 0 15px currentColor; }
     .cyber-checkbox input:checked ~ .checkmark:after {
@@ -112,7 +129,6 @@
       width: 5px; height: 10px; border: solid #000; border-width: 0 3px 3px 0; transform: rotate(45deg);
     }
 
-    /* ハードウェア風レンジスライダー */
     .range-container { display: flex; align-items: center; gap: 10px; }
     input[type=range] { -webkit-appearance: none; flex: 1; background: transparent; }
     input[type=range]:focus { outline: none; }
@@ -125,10 +141,9 @@
 
     #status-msg { font-size: 11px; font-weight: bold; color: var(--neon-yellow); text-shadow: 0 0 5px var(--neon-yellow); text-transform: uppercase; }
 
-    /* カラーバッジ */
     .color-dot { width: 10px; height: 10px; display: inline-block; box-shadow: 0 0 8px currentColor; border: 1px solid #fff; }
 
-    /* Leaflet UIのサイバー化 */
+    /* Leaflet UI */
     .leaflet-bar a {
       background: #000 !important; color: var(--neon-cyan) !important;
       border: 1px solid var(--neon-cyan) !important; box-shadow: 0 0 5px var(--neon-cyan);
@@ -136,14 +151,11 @@
     .leaflet-bar a:hover { background: var(--neon-cyan) !important; color: #000 !important; }
     
     .legend { 
-      background: rgba(0, 0, 0, 0.85) !important; border: 2px solid var(--neon-cyan); 
-      padding: 15px; font-size: 12px; color: var(--neon-cyan); 
-      box-shadow: 0 0 15px var(--neon-cyan); line-height: 22px;
-      font-family: 'Orbitron', sans-serif;
+      font-size: 12px; color: var(--neon-cyan); 
+      line-height: 22px; font-family: 'Orbitron', sans-serif;
     }
     .legend i { width: 12px; height: 12px; float: left; margin-top: 5px; margin-right: 10px; box-shadow: 0 0 8px currentColor; }
 
-    /* ツールチップのサイバー化 */
     .leaflet-tooltip { 
       background: rgba(0, 0, 0, 0.9); border: 1px solid var(--neon-cyan); color: var(--neon-cyan); 
       box-shadow: 0 0 10px var(--neon-cyan); font-family: 'Orbitron', sans-serif; text-shadow: 0 0 5px var(--neon-cyan);
@@ -156,69 +168,73 @@
 
 <div id="map"></div>
 
-<!-- SFコンソール風コントロールパネル -->
-<div id="control-panel">
-  <div class="panel-section">
-    <h3>SYS_DATA_SOURCE</h3>
-    <div class="control-group">
-      <div class="control-header"><span class="control-label">TARGET_ROUTE</span></div>
-      <select id="mode-select"><option value="">FETCHING DB...</option></select>
-    </div>
-    <div class="control-group">
-      <div class="control-header"><span class="control-label">DATA_TYPE</span></div>
-      <select id="datatype-select">
-        <option value="cleansed">CLEANSED (OSRM)</option>
-        <option value="raw">RAW_GEOMETRY</option>
-      </select>
-    </div>
-    <span id="status-msg"></span>
+<!-- コントロールパネル (左上) -->
+<div id="control-panel" class="cyber-panel">
+  <div class="panel-header" onclick="toggleSection('control-content', 'panel-icon')">
+    <h2>SYS_CONTROL</h2>
+    <span id="panel-icon" class="toggle-icon">[-]</span>
   </div>
 
-  <div class="panel-section">
-    <h3>BARRIER_ANALYTICS</h3>
-    <!-- 段差フィルタ -->
-    <div class="control-group" style="color: var(--color-step);">
-      <div class="control-header">
-        <label class="control-label"><span class="color-dot" style="background: currentColor;"></span>STEP_SHOCK</label>
-        <label class="cyber-checkbox"><input type="checkbox" id="chk-step" checked><span class="checkmark"></span></label>
+  <div id="control-content">
+    <div class="panel-section">
+      <h3>SYS_DATA_SOURCE</h3>
+      <div class="control-group">
+        <div class="control-header"><span class="control-label">TARGET_ROUTE</span></div>
+        <select id="mode-select"><option value="">FETCHING DB...</option></select>
       </div>
-      <div class="range-container">
-        <input type="range" id="step-slider" min="0" max="10" step="0.5" value="3.5">
-        <span class="slider-val"><span id="step-val-text">3.5</span> G</span>
+      <div class="control-group">
+        <div class="control-header"><span class="control-label">DATA_TYPE</span></div>
+        <select id="datatype-select">
+          <option value="cleansed">CLEANSED (OSRM)</option>
+          <option value="raw">RAW_GEOMETRY</option>
+        </select>
       </div>
+      <span id="status-msg"></span>
     </div>
 
-    <!-- ウィリーフィルタ -->
-    <div class="control-group" style="color: var(--color-wheelie);">
-      <div class="control-header">
-        <label class="control-label"><span class="color-dot" style="background: currentColor;"></span>WHEELIE</label>
-        <label class="cyber-checkbox"><input type="checkbox" id="chk-wheelie" checked><span class="checkmark"></span></label>
+    <div class="panel-section">
+      <h3>BARRIER_ANALYTICS</h3>
+      <div class="control-group" style="color: var(--color-step);">
+        <div class="control-header">
+          <label class="control-label"><span class="color-dot" style="background: currentColor;"></span>STEP_SHOCK</label>
+          <label class="cyber-checkbox"><input type="checkbox" id="chk-step" checked><span class="checkmark"></span></label>
+        </div>
+        <div class="range-container">
+          <input type="range" id="step-slider" min="0" max="10" step="0.5" value="3.5">
+          <span class="slider-val"><span id="step-val-text">3.5</span> G</span>
+        </div>
       </div>
-      <div class="range-container">
-        <input type="range" id="wheelie-slider" min="0" max="300" step="10" value="100">
-        <span class="slider-val"><span id="wheelie-val-text">100</span> °/s</span>
-      </div>
-    </div>
 
-    <!-- 急傾斜フィルタ -->
-    <div class="control-group" style="color: var(--color-steep);">
-      <div class="control-header">
-        <label class="control-label"><span class="color-dot" style="background: currentColor;"></span>STEEP_SLOPE</label>
-        <label class="cyber-checkbox"><input type="checkbox" id="chk-steep" checked><span class="checkmark"></span></label>
+      <div class="control-group" style="color: var(--color-wheelie);">
+        <div class="control-header">
+          <label class="control-label"><span class="color-dot" style="background: currentColor;"></span>WHEELIE</label>
+          <label class="cyber-checkbox"><input type="checkbox" id="chk-wheelie" checked><span class="checkmark"></span></label>
+        </div>
+        <div class="range-container">
+          <input type="range" id="wheelie-slider" min="0" max="300" step="10" value="100">
+          <span class="slider-val"><span id="wheelie-val-text">100</span> °/s</span>
+        </div>
       </div>
-      <div class="range-container">
-        <input type="range" id="steep-slider" min="0" max="30" step="1" value="5">
-        <span class="slider-val"><span id="steep-val-text">5</span> DEG</span>
+
+      <div class="control-group" style="color: var(--color-steep);">
+        <div class="control-header">
+          <label class="control-label"><span class="color-dot" style="background: currentColor;"></span>STEEP_SLOPE</label>
+          <label class="cyber-checkbox"><input type="checkbox" id="chk-steep" checked><span class="checkmark"></span></label>
+        </div>
+        <div class="range-container">
+          <input type="range" id="steep-slider" min="0" max="30" step="1" value="5">
+          <span class="slider-val"><span id="steep-val-text">5</span> DEG</span>
+        </div>
       </div>
     </div>
-  </div>
-  
-  <div class="panel-section">
-    <h3>TRACKING_DEVICE</h3>
-    <div class="control-group" style="color: var(--color-device);">
-      <div class="control-header">
-        <label class="control-label"><span class="color-dot" style="background: currentColor;"></span>LIVE_POSITION</label>
-        <label class="cyber-checkbox"><input type="checkbox" id="chk-device" checked><span class="checkmark"></span></label>
+    
+    <div class="panel-section">
+      <h3>TRACKING_DEVICE</h3>
+      <div class="control-group" style="color: var(--color-device);">
+        <div class="control-header">
+          <label class="control-label"><span class="color-dot" style="background: currentColor;"></span>LIVE_POSITION</label>
+          <label class="cyber-checkbox"><input type="checkbox" id="chk-device" checked><span class="checkmark"></span></label>
+        </div>
       </div>
     </div>
   </div>
@@ -228,6 +244,31 @@
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
 <script>
+  // UI展開・縮小関数
+  function toggleSection(contentId, iconId) {
+    const content = document.getElementById(contentId);
+    const icon = document.getElementById(iconId);
+    if (content.classList.contains('collapsed')) {
+      content.classList.remove('collapsed');
+      icon.innerText = '[-]';
+    } else {
+      content.classList.add('collapsed');
+      icon.innerText = '[+]';
+    }
+  }
+
+  window.toggleLegend = function() {
+    const content = document.getElementById('legend-content');
+    const icon = document.getElementById('legend-icon');
+    if (content.style.display === 'none') {
+      content.style.display = 'block';
+      icon.innerText = '[-]';
+    } else {
+      content.style.display = 'none';
+      icon.innerText = '[+]';
+    }
+  }
+
   // ==========================================
   // 接続設定
   // ==========================================
@@ -238,11 +279,10 @@
     ? null 
     : window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
-  // マップの初期化
+  // マップ初期化（ズームコントロールは右上に配置）
   const map = L.map('map', { zoomControl: false }).setView([33.883, 130.875], 15);
-  L.control.zoom({ position: 'bottomright' }).addTo(map);
+  L.control.zoom({ position: 'topright' }).addTo(map);
 
-  // ベースマップ
   const osmLayer = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19, attribution: '© OpenStreetMap' });
   osmLayer.addTo(map);
   
@@ -253,7 +293,6 @@
   let currentBarriers = [];
   let currentDevices = [];
   
-  // UI要素
   const modeSelect = document.getElementById('mode-select');
   const dataTypeSelect = document.getElementById('datatype-select');
   const statusMsg = document.getElementById('status-msg');
@@ -272,7 +311,6 @@
 
   const chkDevice = document.getElementById('chk-device');
 
-  // イベントリスナー
   modeSelect.addEventListener('change', loadData);
   dataTypeSelect.addEventListener('change', loadData);
 
@@ -281,18 +319,9 @@
   });
   chkDevice.addEventListener('change', updateDeviceDisplay);
 
-  stepSlider.addEventListener('input', function() {
-    stepValText.innerText = parseFloat(this.value).toFixed(1);
-    updateBarrierDisplay();
-  });
-  wheelieSlider.addEventListener('input', function() {
-    wheelieValText.innerText = parseInt(this.value, 10);
-    updateBarrierDisplay();
-  });
-  steepSlider.addEventListener('input', function() {
-    steepValText.innerText = parseInt(this.value, 10);
-    updateBarrierDisplay();
-  });
+  stepSlider.addEventListener('input', function() { stepValText.innerText = parseFloat(this.value).toFixed(1); updateBarrierDisplay(); });
+  wheelieSlider.addEventListener('input', function() { wheelieValText.innerText = parseInt(this.value, 10); updateBarrierDisplay(); });
+  steepSlider.addEventListener('input', function() { steepValText.innerText = parseInt(this.value, 10); updateBarrierDisplay(); });
 
   function parsePointGeom(geom) {
     if (!geom) return null;
@@ -307,18 +336,13 @@
   async function fetchTripList() {
     if (!supabaseClient) return;
     try {
-      const { data: trips } = await supabaseClient
-        .from('trips')
-        .select('trip_id, title, measured_date, event_name')
-        .order('created_at', { ascending: false });
-        
+      const { data: trips } = await supabaseClient.from('trips').select('trip_id, title, measured_date, event_name').order('created_at', { ascending: false });
       modeSelect.innerHTML = '';
       if (trips && trips.length > 0) {
         trips.forEach(t => {
           const opt = document.createElement('option');
           opt.value = t.trip_id;
-          const displayName = t.event_name ? t.event_name : t.title;
-          opt.textContent = `ID:${t.trip_id} | ${displayName}`;
+          opt.textContent = `ID:${t.trip_id} | ${t.event_name ? t.event_name : t.title}`;
           modeSelect.appendChild(opt);
         });
         loadData();
@@ -341,8 +365,7 @@
     const tripId = modeSelect.value;
     if (!tripId || !supabaseClient) return;
 
-    dataLayerGroup.clearLayers();
-    barrierLayerGroup.clearLayers();
+    dataLayerGroup.clearLayers(); barrierLayerGroup.clearLayers();
     statusMsg.innerText = 'LOADING...';
     
     try {
@@ -355,10 +378,7 @@
       currentBarriers = barriersRes.data || [];
       const tripData = tripRes.data;
 
-      if (!tripData || !tripData[targetCol]) {
-        statusMsg.innerText = 'NO DATA';
-        return;
-      }
+      if (!tripData || !tripData[targetCol]) { statusMsg.innerText = 'NO DATA'; return; }
 
       const rawGeom = tripData[targetCol];
       let coordsArray = [];
@@ -367,24 +387,17 @@
 
       if (coordsArray.length > 0) {
         const latLngs = coordsArray.map(c => [c[1], c[0]]);
-        // ルート線描画
         L.polyline(latLngs, { color: 'var(--color-route)', weight: 5, opacity: 0.9 }).addTo(dataLayerGroup);
         map.fitBounds(L.polyline(latLngs).getBounds(), { padding: [30, 30] });
         renderStartEnd(latLngs[0], latLngs[latLngs.length - 1]);
       }
       
-      updateBarrierDisplay();
-      statusMsg.innerText = '';
-    } catch (err) { console.error(err); statusMsg.innerText = 'ERROR'; }
+      updateBarrierDisplay(); statusMsg.innerText = '';
+    } catch (err) { statusMsg.innerText = 'ERROR'; }
   }
 
   function updateBarrierDisplay() {
     barrierLayerGroup.clearLayers();
-
-    const isStepOn = chkStep.checked; const stepThresh = parseFloat(stepSlider.value);
-    const isWheelieOn = chkWheelie.checked; const wheelieThresh = parseFloat(wheelieSlider.value);
-    const isSteepOn = chkSteep.checked; const steepThresh = parseFloat(steepSlider.value);
-
     const style = getComputedStyle(document.body);
     const colorStep = style.getPropertyValue('--color-step').trim();
     const colorWheelie = style.getPropertyValue('--color-wheelie').trim();
@@ -392,21 +405,17 @@
 
     currentBarriers.forEach(b => {
       let draw = false; let color = ''; let label = ''; let radius = 6;
-
-      if (b.barrier_type === 'step' && isStepOn && b.intensity >= stepThresh) {
+      if (b.barrier_type === 'step' && chkStep.checked && b.intensity >= parseFloat(stepSlider.value)) {
         draw = true; color = colorStep; label = `SHOCK: ${Number(b.intensity).toFixed(2)} G`; radius = 7;
-      } else if (b.barrier_type === 'wheelie' && isWheelieOn && Math.abs(b.intensity) >= wheelieThresh) {
+      } else if (b.barrier_type === 'wheelie' && chkWheelie.checked && Math.abs(b.intensity) >= parseFloat(wheelieSlider.value)) {
         draw = true; color = colorWheelie; label = `WHEELIE: ${Number(Math.abs(b.intensity)).toFixed(1)} °/s`; radius = 6;
-      } else if (b.barrier_type === 'steep_slope' && isSteepOn && b.intensity >= steepThresh) {
+      } else if (b.barrier_type === 'steep_slope' && chkSteep.checked && b.intensity >= parseFloat(steepSlider.value)) {
         draw = true; color = colorSteep; label = `SLOPE: ${Number(b.intensity).toFixed(1)} °`; radius = 5;
       }
 
       if (draw) {
         const coords = parsePointGeom(b.geom);
-        if (coords) {
-          L.circleMarker(coords, { radius: radius, fillColor: '#000', color: color, weight: 3, fillOpacity: 0.8 })
-           .bindTooltip(label, { direction: 'top' }).addTo(barrierLayerGroup);
-        }
+        if (coords) L.circleMarker(coords, { radius: radius, fillColor: '#000', color: color, weight: 3, fillOpacity: 0.8 }).bindTooltip(label, { direction: 'top' }).addTo(barrierLayerGroup);
       }
     });
   }
@@ -414,57 +423,44 @@
   function updateDeviceDisplay() {
     deviceLayerGroup.clearLayers();
     if (!chkDevice.checked) return;
-
-    const style = getComputedStyle(document.body);
-    const colorDevice = style.getPropertyValue('--color-device').trim();
+    const colorDevice = getComputedStyle(document.body).getPropertyValue('--color-device').trim();
 
     currentDevices.forEach(d => {
       if (d.lat == null || d.lon == null) return;
-      
-      const tooltipHtml = `
-        <div style="font-size: 11px; line-height: 1.6;">
-          <strong style="color: ${colorDevice}; font-size: 13px;">${d.device_id}</strong><br>
-          NAME: ${d.device_name || 'UNKNOWN'}<br>
-          STAT: ${d.status}<br>
-          TEMP: ${d.temperature} C<br>
-          FIXD: ${d.is_fixed ? 'YES' : 'NO'}<br>
-          TIME: ${new Date(d.jst).toLocaleTimeString()}
-        </div>
-      `;
-      
-      L.circleMarker([d.lat, d.lon], { 
-        radius: 7, fillColor: '#000', color: colorDevice, weight: 3, fillOpacity: 0.9 
-      })
-      .bindTooltip(tooltipHtml, { direction: 'top' })
-      .addTo(deviceLayerGroup);
+      const tooltipHtml = `<div style="font-size: 11px; line-height: 1.6;"><strong style="color: ${colorDevice}; font-size: 13px;">${d.device_id}</strong><br>NAME: ${d.device_name || 'UNKNOWN'}<br>STAT: ${d.status}<br>TEMP: ${d.temperature} C<br>FIXD: ${d.is_fixed ? 'YES' : 'NO'}<br>TIME: ${new Date(d.jst).toLocaleTimeString()}</div>`;
+      L.circleMarker([d.lat, d.lon], { radius: 7, fillColor: '#000', color: colorDevice, weight: 3, fillOpacity: 0.9 }).bindTooltip(tooltipHtml, { direction: 'top' }).addTo(deviceLayerGroup);
     });
   }
 
   function renderStartEnd(startPt, endPt) {
-    const createIcon = (t, c) => L.divIcon({ 
-      className: '', 
-      html: `<div style="background:#000; color:${c}; font-size:12px; font-weight:bold; width:22px; height:22px; line-height:20px; text-align:center; border:2px solid ${c}; box-shadow:0 0 10px ${c};">${t}</div>`, 
-      iconSize: [26, 26], iconAnchor: [13, 13] 
-    });
+    const createIcon = (t, c) => L.divIcon({ className: '', html: `<div style="background:#000; color:${c}; font-size:12px; font-weight:bold; width:22px; height:22px; line-height:20px; text-align:center; border:2px solid ${c}; box-shadow:0 0 10px ${c};">${t}</div>`, iconSize: [26, 26], iconAnchor: [13, 13] });
     L.marker(startPt, { icon: createIcon('S', 'var(--color-route)') }).addTo(dataLayerGroup);
     L.marker(endPt, { icon: createIcon('G', 'var(--color-step)') }).addTo(dataLayerGroup);
   }
 
-  // レトロフューチャー凡例
-  const legend = L.control({ position: 'bottomleft' });
+  // 凡例コントロール (右下へ配置・折りたたみ機能追加)
+  const legend = L.control({ position: 'bottomright' });
   legend.onAdd = function () {
-    const div = L.DomUtil.create('div', 'legend');
-    div.innerHTML += '<div style="margin-bottom: 8px; font-weight: 900; border-bottom: 1px solid var(--neon-cyan); padding-bottom: 4px; text-shadow: 0 0 5px var(--neon-cyan);">SYS_LEGEND</div>';
-    div.innerHTML += '<i style="background: var(--color-route); color: var(--color-route);"></i>ROUTE_TRACK<br>';
-    div.innerHTML += '<i style="background: var(--color-step); color: var(--color-step);"></i>STEP_SHOCK<br>';
-    div.innerHTML += '<i style="background: var(--color-wheelie); color: var(--color-wheelie);"></i>WHEELIE_ACT<br>';
-    div.innerHTML += '<i style="background: var(--color-steep); color: var(--color-steep);"></i>STEEP_SLOPE<br>';
-    div.innerHTML += '<i style="background: var(--color-device); color: var(--color-device);"></i>LIVE_DEVICE<br>';
+    const div = L.DomUtil.create('div', 'legend cyber-panel');
+    // クリックイベントがマップに伝播しないようにする
+    L.DomEvent.disableClickPropagation(div);
+    div.innerHTML = `
+      <div class="panel-header" onclick="toggleLegend()" style="margin-bottom:0; border-bottom:none; padding-bottom:0;">
+        <h2>SYS_LEGEND</h2>
+        <span id="legend-icon" class="toggle-icon">[-]</span>
+      </div>
+      <div id="legend-content" style="margin-top: 10px; border-top: 1px dashed var(--neon-cyan); padding-top: 10px;">
+        <i style="background: var(--color-route); color: var(--color-route);"></i>ROUTE_TRACK<br>
+        <i style="background: var(--color-step); color: var(--color-step);"></i>STEP_SHOCK<br>
+        <i style="background: var(--color-wheelie); color: var(--color-wheelie);"></i>WHEELIE_ACT<br>
+        <i style="background: var(--color-steep); color: var(--color-steep);"></i>STEEP_SLOPE<br>
+        <i style="background: var(--color-device); color: var(--color-device);"></i>LIVE_DEVICE<br>
+      </div>
+    `;
     return div;
   };
   legend.addTo(map);
 
-  // 初期ロード
   fetchTripList();
   fetchDeviceStatus();
 </script>
