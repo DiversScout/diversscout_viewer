@@ -10,20 +10,14 @@
   
   <style>
     :root {
-      /* デフォルトのフラットカラー（グラスモーフィズムデザイン時の色） */
-      --color-route: #10b981;
-      --color-step: #ef4444;
-      --color-wheelie: #f97316;
-      --color-steep: #8b5cf6;
-      --color-device: #0ea5e9;
+      /* デフォルトはレトロフューチャー指定前のフラットカラー */
+      --color-route: #16a085;
+      --color-step: #d63031;
+      --color-wheelie: #e17055;
+      --color-steep: #6c5ce7;
+      --color-device: #0984e3;
       
-      /* CYBER_MODE用のネオンカラー */
       --neon-cyan: #0ff;
-      --neon-magenta: #f0f;
-      --neon-yellow: #ff0;
-      --neon-orange: #f90;
-      --neon-green: #3f3;
-      
       --bg-dark: rgba(5, 5, 10, 0.9);
     }
 
@@ -34,15 +28,8 @@
       color: var(--neon-cyan);
       background-color: #f0f0f0; 
     }
-    
-    /* CYBER_MODE時は配色をネオンカラーに上書き */
     body.cyber-mode {
       background-color: #000;
-      --color-route: var(--neon-cyan);
-      --color-step: var(--neon-magenta);
-      --color-wheelie: var(--neon-orange);
-      --color-steep: var(--neon-yellow);
-      --color-device: var(--neon-green);
     }
 
     /* マップ領域 */
@@ -60,7 +47,7 @@
     #cyber-effects {
       display: none; 
       position: absolute; top: 0; left: 0; width: 100vw; height: 100vh;
-      pointer-events: none; z-index: 5000; /* Leafletより上、UIより下 */
+      pointer-events: none; z-index: 5000; 
     }
     body.cyber-mode #cyber-effects {
       display: block; 
@@ -79,15 +66,12 @@
     .cyber-tile {
       filter: invert(100%) sepia(20%) hue-rotate(180deg) brightness(70%) contrast(150%);
     }
-
     body.cyber-mode .leaflet-overlay-pane svg path {
       filter: drop-shadow(0 0 5px rgba(255, 255, 255, 0.5));
     }
 
-    /* LeafletのUIがエフェクトに埋もれないようz-indexを引き上げ */
     .leaflet-control-container {
-      position: relative;
-      z-index: 10000;
+      position: relative; z-index: 10000;
     }
 
     /* パネル共通スタイル */
@@ -98,7 +82,6 @@
       padding: 15px;
     }
 
-    /* 折りたたみヘッダー */
     .panel-header {
       display: flex; justify-content: space-between; align-items: center;
       cursor: pointer;
@@ -112,32 +95,20 @@
       text-shadow: 0 0 8px var(--neon-cyan);
     }
     
-    /* サイバー風ボタン */
     .cyber-btn {
       background: rgba(0, 0, 0, 0.8);
       color: var(--neon-cyan);
       border: 1px solid var(--neon-cyan);
       padding: 4px 8px;
       font-family: 'Orbitron', sans-serif;
-      font-size: 11px;
-      font-weight: bold;
-      cursor: pointer;
-      box-shadow: 0 0 5px var(--neon-cyan);
-      transition: all 0.2s ease-in-out;
-      text-transform: uppercase;
+      font-size: 11px; font-weight: bold; cursor: pointer;
+      box-shadow: 0 0 5px var(--neon-cyan); transition: all 0.2s ease-in-out; text-transform: uppercase;
     }
     .cyber-btn:hover { background: var(--neon-cyan); color: #000; }
-    .cyber-btn.collapsed-state {
-      color: var(--neon-orange);
-      border-color: var(--neon-orange);
-      box-shadow: 0 0 5px var(--neon-orange);
-    }
-    .cyber-btn.collapsed-state:hover { background: var(--neon-orange); color: #000; }
+    .cyber-btn.collapsed-state { color: #f90; border-color: #f90; box-shadow: 0 0 5px #f90; }
+    .cyber-btn.collapsed-state:hover { background: #f90; color: #000; }
 
-    /* レイヤー切り替え用ボタングループ */
-    .layer-btn-group {
-      display: grid; grid-template-columns: 1fr 1fr; gap: 8px;
-    }
+    .layer-btn-group { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
     .layer-btn {
       background: rgba(0, 0, 0, 0.8); color: var(--neon-cyan);
       border: 1px solid var(--neon-cyan); padding: 8px 4px;
@@ -149,11 +120,8 @@
 
     .collapsed { display: none !important; }
 
-    /* コントロールパネル */
     #control-panel { 
-      position: absolute; top: 20px; left: 20px; 
-      z-index: 10000; /* 最前面に配置してスライダー操作を確保 */
-      width: 320px; 
+      position: absolute; top: 20px; left: 20px; z-index: 10000; width: 320px; 
     }
     #control-content {
       display: flex; flex-direction: column; gap: 20px;
@@ -176,8 +144,7 @@
     select { 
       width: 100%; padding: 8px 10px; font-size: 12px; font-family: 'Orbitron', sans-serif;
       background: rgba(0,0,0,0.8); color: var(--neon-cyan);
-      border: 1px solid var(--neon-cyan);
-      box-shadow: 0 0 5px var(--neon-cyan);
+      border: 1px solid var(--neon-cyan); box-shadow: 0 0 5px var(--neon-cyan);
       outline: none; cursor: pointer; text-transform: uppercase;
     }
     select:hover { background: rgba(0, 255, 255, 0.15); }
@@ -202,34 +169,35 @@
     }
     input[type=range]:focus { outline: none; }
     input[type=range]::-webkit-slider-runnable-track { width: 100%; height: 2px; background: currentColor; box-shadow: 0 0 5px currentColor; cursor: pointer; }
+    
+    /* スライダーつまみの視認性向上（白塗りの円形） */
     input[type=range]::-webkit-slider-thumb { 
-      height: 18px; width: 10px; background: #000; border: 2px solid currentColor; 
-      box-shadow: 0 0 10px currentColor; cursor: pointer; -webkit-appearance: none; margin-top: -8px; 
+      height: 16px; width: 16px; 
+      background: #ffffff; 
+      border: 3px solid currentColor; 
+      border-radius: 50%;
+      box-shadow: 0 0 8px currentColor; 
+      cursor: pointer; 
+      -webkit-appearance: none; 
+      margin-top: -7px; 
     }
     .slider-val { font-size: 13px; min-width: 55px; text-align: right; text-shadow: 0 0 5px currentColor; }
 
-    #status-msg { font-size: 11px; font-weight: bold; color: var(--neon-yellow); text-shadow: 0 0 5px var(--neon-yellow); text-transform: uppercase; }
-
+    #status-msg { font-size: 11px; font-weight: bold; color: #ff0; text-shadow: 0 0 5px #ff0; text-transform: uppercase; }
     .color-dot { width: 10px; height: 10px; display: inline-block; box-shadow: 0 0 8px currentColor; border: 1px solid #fff; }
 
-    /* Leaflet UI全般 */
     .leaflet-bar a {
       background: #000 !important; color: var(--neon-cyan) !important;
       border: 1px solid var(--neon-cyan) !important; box-shadow: 0 0 5px var(--neon-cyan);
     }
     .leaflet-bar a:hover { background: var(--neon-cyan) !important; color: #000 !important; }
     
-    /* 凡例 */
-    .legend { 
-      font-size: 12px; color: var(--neon-cyan); 
-      line-height: 22px; font-family: 'Orbitron', sans-serif;
-    }
+    .legend { font-size: 12px; color: var(--neon-cyan); line-height: 22px; font-family: 'Orbitron', sans-serif; }
     .legend i { width: 12px; height: 12px; float: left; margin-top: 5px; margin-right: 10px; box-shadow: 0 0 8px currentColor; }
 
     .leaflet-tooltip { 
       background: rgba(0, 0, 0, 0.9); border: 1px solid var(--neon-cyan); color: var(--neon-cyan); 
-      box-shadow: 0 0 10px var(--neon-cyan); font-family: 'Orbitron', sans-serif; text-shadow: 0 0 5px var(--neon-cyan);
-      border-radius: 0;
+      box-shadow: 0 0 10px var(--neon-cyan); font-family: 'Orbitron', sans-serif; text-shadow: 0 0 5px var(--neon-cyan); border-radius: 0;
     }
     .leaflet-tooltip-top:before { border-top-color: var(--neon-cyan); }
   </style>
@@ -249,8 +217,6 @@
   </div>
 
   <div id="control-content">
-    
-    <!-- マップレイヤー切り替え -->
     <div class="panel-section">
       <h3>MAP_LAYER</h3>
       <div class="layer-btn-group">
@@ -329,7 +295,6 @@
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
 <script>
-  // UI展開・縮小関数
   function toggleSection(contentId, btnId) {
     const content = document.getElementById(contentId);
     const btn = document.getElementById(btnId);
@@ -354,11 +319,9 @@
     ? null 
     : window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
-  // マップ初期化
   const map = L.map('map', { zoomControl: false }).setView([33.883, 130.875], 15);
   L.control.zoom({ position: 'topright' }).addTo(map);
   
-  // マップレイヤーの定義
   const layers = {
     osm: L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19, attribution: '© OpenStreetMap' }),
     cyber: L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19, attribution: '© OpenStreetMap', className: 'cyber-tile' }),
@@ -366,35 +329,56 @@
     topo: L.tileLayer('https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png', { maxZoom: 17, attribution: '© OpenTopoMap' })
   };
 
-  // デフォルトはフィルターなしOSM
   let currentBaseLayer = layers.osm;
   currentBaseLayer.addTo(map);
+  let currentTripLatLngs = null; 
 
-  let currentTripLatLngs = null; // 再描画用の座標保持
+  // モードに応じてCSS変数を明示的に書き換える
+  function applyColorTheme(isCyber) {
+    const root = document.documentElement;
+    if (isCyber) {
+      root.style.setProperty('--color-route', '#0ff');
+      root.style.setProperty('--color-step', '#f0f');
+      root.style.setProperty('--color-wheelie', '#f90');
+      root.style.setProperty('--color-steep', '#ff0');
+      root.style.setProperty('--color-device', '#3f3');
+    } else {
+      root.style.setProperty('--color-route', '#16a085');
+      root.style.setProperty('--color-step', '#d63031');
+      root.style.setProperty('--color-wheelie', '#e17055');
+      root.style.setProperty('--color-steep', '#6c5ce7');
+      root.style.setProperty('--color-device', '#0984e3');
+    }
+  }
+  applyColorTheme(false); // 初期化
 
-  // レイヤー・モード切り替え関数
   window.switchMapLayer = function(layerKey, btnElem) {
     map.removeLayer(currentBaseLayer);
     currentBaseLayer = layers[layerKey];
     currentBaseLayer.addTo(map);
 
-    // CYBER_MODE時のみ専用クラスを付与
-    if (layerKey === 'cyber') {
+    const isCyber = (layerKey === 'cyber');
+
+    if (isCyber) {
       document.body.classList.add('cyber-mode');
     } else {
       document.body.classList.remove('cyber-mode');
     }
+    
+    // UIパネルの色を再適用
+    applyColorTheme(isCyber);
 
-    // ボタンのハイライト更新
     document.querySelectorAll('.layer-btn').forEach(btn => btn.classList.remove('active'));
     btnElem.classList.add('active');
 
-    // モード切替に伴い、マーカー類のデザインを再描画
+    // マーカー・ルートの再描画
     updateBarrierDisplay();
     updateDeviceDisplay();
     if (currentTripLatLngs && currentTripLatLngs.length > 0) {
       dataLayerGroup.clearLayers();
-      L.polyline(currentTripLatLngs, { color: 'var(--color-route)', weight: 6, opacity: 0.9 }).addTo(dataLayerGroup);
+      const routeColor = isCyber ? '#0ff' : '#16a085';
+      const routeWeight = isCyber ? 5 : 6;
+      L.polyline(currentTripLatLngs, { color: routeColor, weight: routeWeight, opacity: 0.9 }).addTo(dataLayerGroup);
       renderStartEnd(currentTripLatLngs[0], currentTripLatLngs[currentTripLatLngs.length - 1]);
     }
   };
@@ -427,9 +411,7 @@
   modeSelect.addEventListener('change', loadData);
   dataTypeSelect.addEventListener('change', loadData);
 
-  [chkStep, chkWheelie, chkSteep].forEach(chk => {
-    chk.addEventListener('change', updateBarrierDisplay);
-  });
+  [chkStep, chkWheelie, chkSteep].forEach(chk => { chk.addEventListener('change', updateBarrierDisplay); });
   chkDevice.addEventListener('change', updateDeviceDisplay);
 
   stepSlider.addEventListener('input', function() { stepValText.innerText = parseFloat(this.value).toFixed(1); updateBarrierDisplay(); });
@@ -500,7 +482,10 @@
 
       if (coordsArray.length > 0) {
         currentTripLatLngs = coordsArray.map(c => [c[1], c[0]]);
-        L.polyline(currentTripLatLngs, { color: 'var(--color-route)', weight: 6, opacity: 0.9 }).addTo(dataLayerGroup);
+        const isCyber = document.body.classList.contains('cyber-mode');
+        const routeColor = isCyber ? '#0ff' : '#16a085';
+        const routeWeight = isCyber ? 5 : 6;
+        L.polyline(currentTripLatLngs, { color: routeColor, weight: routeWeight, opacity: 0.9 }).addTo(dataLayerGroup);
         map.fitBounds(L.polyline(currentTripLatLngs).getBounds(), { padding: [30, 30] });
         renderStartEnd(currentTripLatLngs[0], currentTripLatLngs[currentTripLatLngs.length - 1]);
       } else {
@@ -513,12 +498,12 @@
 
   function updateBarrierDisplay() {
     barrierLayerGroup.clearLayers();
-    const style = getComputedStyle(document.body);
-    const colorStep = style.getPropertyValue('--color-step').trim();
-    const colorWheelie = style.getPropertyValue('--color-wheelie').trim();
-    const colorSteep = style.getPropertyValue('--color-steep').trim();
-
     const isCyber = document.body.classList.contains('cyber-mode');
+    
+    // JS側で色をハードコード管理し、切り替えを確実にする
+    const colorStep = isCyber ? '#f0f' : '#d63031';
+    const colorWheelie = isCyber ? '#f90' : '#e17055';
+    const colorSteep = isCyber ? '#ff0' : '#6c5ce7';
 
     currentBarriers.forEach(b => {
       let draw = false; let color = ''; let label = ''; let radius = 6;
@@ -533,11 +518,9 @@
       if (draw) {
         const coords = parsePointGeom(b.geom);
         if (coords) {
-          // モードによってスタイルを切り替え
           const markerOpts = isCyber
             ? { radius: radius, fillColor: '#000', color: color, weight: 3, fillOpacity: 0.8 }
             : { radius: radius, fillColor: color, color: '#ffffff', weight: 1.5, fillOpacity: 0.85 };
-
           L.circleMarker(coords, markerOpts).bindTooltip(label, { direction: 'top' }).addTo(barrierLayerGroup);
         }
       }
@@ -547,9 +530,9 @@
   function updateDeviceDisplay() {
     deviceLayerGroup.clearLayers();
     if (!chkDevice.checked) return;
-    
-    const colorDevice = getComputedStyle(document.body).getPropertyValue('--color-device').trim();
+
     const isCyber = document.body.classList.contains('cyber-mode');
+    const colorDevice = isCyber ? '#3f3' : '#0984e3';
 
     currentDevices.forEach(d => {
       if (d.lat == null || d.lon == null) return;
@@ -557,14 +540,16 @@
       
       const markerOpts = isCyber
         ? { radius: 7, fillColor: '#000', color: colorDevice, weight: 3, fillOpacity: 0.9 }
-        : { radius: 7, fillColor: colorDevice, color: '#ffffff', weight: 2, fillOpacity: 1.0 };
-        
+        : { radius: 8, fillColor: colorDevice, color: '#ffffff', weight: 2, fillOpacity: 0.9 };
+
       L.circleMarker([d.lat, d.lon], markerOpts).bindTooltip(tooltipHtml, { direction: 'top' }).addTo(deviceLayerGroup);
     });
   }
 
   function renderStartEnd(startPt, endPt) {
     const isCyber = document.body.classList.contains('cyber-mode');
+    const colorStart = isCyber ? '#0ff' : '#16a085';
+    const colorEnd = isCyber ? '#f0f' : '#d63031';
 
     const createIcon = (t, c) => {
       const htmlStr = isCyber
@@ -572,12 +557,10 @@
         : `<div style="background:${c}; color:white; font-size:12px; font-weight:bold; width:24px; height:24px; line-height:24px; text-align:center; border-radius:50%; border:2px solid white; box-shadow:0 3px 6px rgba(0,0,0,0.4);">${t}</div>`;
       return L.divIcon({ className: '', html: htmlStr, iconSize: [26, 26], iconAnchor: [13, 13] });
     };
-
-    L.marker(startPt, { icon: createIcon('S', 'var(--color-route)') }).addTo(dataLayerGroup);
-    L.marker(endPt, { icon: createIcon('G', 'var(--color-step)') }).addTo(dataLayerGroup);
+    L.marker(startPt, { icon: createIcon('S', colorStart) }).addTo(dataLayerGroup);
+    L.marker(endPt, { icon: createIcon('G', colorEnd) }).addTo(dataLayerGroup);
   }
 
-  // 凡例コントロール
   const legend = L.control({ position: 'bottomright' });
   legend.onAdd = function () {
     const div = L.DomUtil.create('div', 'legend cyber-panel');
