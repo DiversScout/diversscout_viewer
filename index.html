@@ -10,14 +10,20 @@
   
   <style>
     :root {
-      /* デフォルトはレトロフューチャー指定前のフラットカラー */
+      /* 通常モード用フラットカラー（レトロフューチャー指定前） */
       --color-route: #16a085;
       --color-step: #d63031;
       --color-wheelie: #e17055;
       --color-steep: #6c5ce7;
       --color-device: #0984e3;
       
+      /* CYBER_MODE用ネオンカラー */
       --neon-cyan: #0ff;
+      --neon-magenta: #f0f;
+      --neon-yellow: #ff0;
+      --neon-orange: #f90;
+      --neon-green: #3f3;
+      
       --bg-dark: rgba(5, 5, 10, 0.9);
     }
 
@@ -28,8 +34,15 @@
       color: var(--neon-cyan);
       background-color: #f0f0f0; 
     }
+
+    /* CYBER_MODE時はCSS変数をネオンカラーに上書き */
     body.cyber-mode {
       background-color: #000;
+      --color-route: var(--neon-cyan);
+      --color-step: var(--neon-magenta);
+      --color-wheelie: var(--neon-orange);
+      --color-steep: var(--neon-yellow);
+      --color-device: var(--neon-green);
     }
 
     /* マップ領域 */
@@ -37,9 +50,7 @@
       position: absolute; top: 0; left: 0; width: 100vw; height: 100vh; z-index: 1; 
       background: #ddd; 
     }
-    body.cyber-mode #map {
-      background: #000;
-    }
+    body.cyber-mode #map { background: #000; }
 
     /* =========================================
        サイバーエフェクト専用レイヤー
@@ -49,12 +60,11 @@
       position: absolute; top: 0; left: 0; width: 100vw; height: 100vh;
       pointer-events: none; z-index: 5000; 
     }
-    body.cyber-mode #cyber-effects {
-      display: block; 
-    }
+    body.cyber-mode #cyber-effects { display: block; }
+    
     #cyber-effects::before {
       content: ""; position: absolute; top: 0; left: 0; width: 100%; height: 100%;
-      box-shadow: inset 0 0 150px rgba(0,0,0,0.9);
+      box-shadow: inset 0 0 120px rgba(0,0,0,0.9);
     }
     #cyber-effects::after {
       content: ""; position: absolute; top: 0; left: 0; width: 100%; height: 100%;
@@ -62,24 +72,24 @@
       background-size: 100% 4px;
     }
 
-    /* CYBER_MODE用のマップ色反転 */
+    /* CYBER_MODE時のマップ色反転 */
     .cyber-tile {
       filter: invert(100%) sepia(20%) hue-rotate(180deg) brightness(70%) contrast(150%);
     }
-    body.cyber-mode .leaflet-overlay-pane svg path {
-      filter: drop-shadow(0 0 5px rgba(255, 255, 255, 0.5));
+    /* CYBER_MODE時のみ、ルート線だけを発光させる（マーカーにはかけない） */
+    body.cyber-mode .cyber-route-line {
+      filter: drop-shadow(0 0 8px var(--neon-cyan));
     }
 
-    .leaflet-control-container {
-      position: relative; z-index: 10000;
-    }
-
-    /* パネル共通スタイル */
+    /* =========================================
+       UIパネル共通スタイル
+       ========================================= */
     .cyber-panel {
       background: var(--bg-dark);
       border: 2px solid var(--neon-cyan);
       box-shadow: 0 0 15px var(--neon-cyan), inset 0 0 15px rgba(0, 255, 255, 0.2);
       padding: 15px;
+      z-index: 10000; /* マップやエフェクトより確実に前面に出す */
     }
 
     .panel-header {
@@ -96,32 +106,20 @@
     }
     
     .cyber-btn {
-      background: rgba(0, 0, 0, 0.8);
-      color: var(--neon-cyan);
-      border: 1px solid var(--neon-cyan);
-      padding: 4px 8px;
-      font-family: 'Orbitron', sans-serif;
-      font-size: 11px; font-weight: bold; cursor: pointer;
+      background: rgba(0, 0, 0, 0.8); color: var(--neon-cyan);
+      border: 1px solid var(--neon-cyan); padding: 4px 8px;
+      font-family: 'Orbitron', sans-serif; font-size: 11px; font-weight: bold; cursor: pointer;
       box-shadow: 0 0 5px var(--neon-cyan); transition: all 0.2s ease-in-out; text-transform: uppercase;
     }
     .cyber-btn:hover { background: var(--neon-cyan); color: #000; }
     .cyber-btn.collapsed-state { color: #f90; border-color: #f90; box-shadow: 0 0 5px #f90; }
     .cyber-btn.collapsed-state:hover { background: #f90; color: #000; }
 
-    .layer-btn-group { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
-    .layer-btn {
-      background: rgba(0, 0, 0, 0.8); color: var(--neon-cyan);
-      border: 1px solid var(--neon-cyan); padding: 8px 4px;
-      font-family: 'Orbitron', sans-serif; font-size: 10px;
-      cursor: pointer; transition: all 0.2s; text-align: center;
-    }
-    .layer-btn:hover { background: rgba(0, 255, 255, 0.2); }
-    .layer-btn.active { background: var(--neon-cyan); color: #000; box-shadow: 0 0 10px var(--neon-cyan); font-weight: bold; }
-
     .collapsed { display: none !important; }
 
+    /* コントロールパネル (左上) */
     #control-panel { 
-      position: absolute; top: 20px; left: 20px; z-index: 10000; width: 320px; 
+      position: absolute; top: 20px; left: 20px; width: 320px; 
     }
     #control-content {
       display: flex; flex-direction: column; gap: 20px;
@@ -130,21 +128,39 @@
     #control-content::-webkit-scrollbar { width: 4px; }
     #control-content::-webkit-scrollbar-thumb { background: var(--neon-cyan); box-shadow: 0 0 5px var(--neon-cyan); }
 
+    /* 凡例パネル (右下) - 完全に独立したDOMとして配置 */
+    #legend-panel {
+      position: absolute; bottom: 25px; right: 20px; width: 220px;
+    }
+    #legend-content {
+      font-size: 12px; color: var(--neon-cyan); line-height: 22px; font-family: 'Orbitron', sans-serif;
+    }
+    #legend-content i { 
+      width: 12px; height: 12px; float: left; margin-top: 5px; margin-right: 10px; 
+      box-shadow: 0 0 8px currentColor; 
+    }
+
+    /* UIパーツ類 */
+    .layer-btn-group { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+    .layer-btn {
+      background: rgba(0, 0, 0, 0.8); color: var(--neon-cyan); border: 1px solid var(--neon-cyan); padding: 8px 4px;
+      font-family: 'Orbitron', sans-serif; font-size: 10px; cursor: pointer; transition: all 0.2s; text-align: center;
+    }
+    .layer-btn:hover { background: rgba(0, 255, 255, 0.2); }
+    .layer-btn.active { background: var(--neon-cyan); color: #000; box-shadow: 0 0 10px var(--neon-cyan); font-weight: bold; }
+
     .panel-section { display: flex; flex-direction: column; gap: 12px; }
     .panel-section h3 { 
       margin: 0; font-size: 13px; font-weight: 700; letter-spacing: 0.1em; 
-      border-bottom: 1px dashed var(--neon-cyan); padding-bottom: 4px;
-      text-shadow: 0 0 5px var(--neon-cyan); opacity: 0.8;
+      border-bottom: 1px dashed var(--neon-cyan); padding-bottom: 4px; text-shadow: 0 0 5px var(--neon-cyan); opacity: 0.8;
     }
-    
     .control-group { display: flex; flex-direction: column; gap: 6px; }
     .control-header { display: flex; justify-content: space-between; align-items: center; }
     .control-label { font-size: 13px; display: flex; align-items: center; gap: 8px; text-shadow: 0 0 5px currentColor; }
 
     select { 
       width: 100%; padding: 8px 10px; font-size: 12px; font-family: 'Orbitron', sans-serif;
-      background: rgba(0,0,0,0.8); color: var(--neon-cyan);
-      border: 1px solid var(--neon-cyan); box-shadow: 0 0 5px var(--neon-cyan);
+      background: rgba(0,0,0,0.8); color: var(--neon-cyan); border: 1px solid var(--neon-cyan); box-shadow: 0 0 5px var(--neon-cyan);
       outline: none; cursor: pointer; text-transform: uppercase;
     }
     select:hover { background: rgba(0, 255, 255, 0.15); }
@@ -170,31 +186,16 @@
     input[type=range]:focus { outline: none; }
     input[type=range]::-webkit-slider-runnable-track { width: 100%; height: 2px; background: currentColor; box-shadow: 0 0 5px currentColor; cursor: pointer; }
     
-    /* スライダーつまみの視認性向上（白塗りの円形） */
+    /* スライダーつまみ (白丸) */
     input[type=range]::-webkit-slider-thumb { 
-      height: 16px; width: 16px; 
-      background: #ffffff; 
-      border: 3px solid currentColor; 
-      border-radius: 50%;
-      box-shadow: 0 0 8px currentColor; 
-      cursor: pointer; 
-      -webkit-appearance: none; 
-      margin-top: -7px; 
+      height: 16px; width: 16px; background: #ffffff; border: 3px solid currentColor; border-radius: 50%;
+      box-shadow: 0 0 8px currentColor; cursor: pointer; -webkit-appearance: none; margin-top: -7px; 
     }
     .slider-val { font-size: 13px; min-width: 55px; text-align: right; text-shadow: 0 0 5px currentColor; }
-
     #status-msg { font-size: 11px; font-weight: bold; color: #ff0; text-shadow: 0 0 5px #ff0; text-transform: uppercase; }
     .color-dot { width: 10px; height: 10px; display: inline-block; box-shadow: 0 0 8px currentColor; border: 1px solid #fff; }
 
-    .leaflet-bar a {
-      background: #000 !important; color: var(--neon-cyan) !important;
-      border: 1px solid var(--neon-cyan) !important; box-shadow: 0 0 5px var(--neon-cyan);
-    }
-    .leaflet-bar a:hover { background: var(--neon-cyan) !important; color: #000 !important; }
-    
-    .legend { font-size: 12px; color: var(--neon-cyan); line-height: 22px; font-family: 'Orbitron', sans-serif; }
-    .legend i { width: 12px; height: 12px; float: left; margin-top: 5px; margin-right: 10px; box-shadow: 0 0 8px currentColor; }
-
+    /* Leaflet ツールチップ */
     .leaflet-tooltip { 
       background: rgba(0, 0, 0, 0.9); border: 1px solid var(--neon-cyan); color: var(--neon-cyan); 
       box-shadow: 0 0 10px var(--neon-cyan); font-family: 'Orbitron', sans-serif; text-shadow: 0 0 5px var(--neon-cyan); border-radius: 0;
@@ -205,8 +206,6 @@
 <body>
 
 <div id="map"></div>
-
-<!-- エフェクト専用レイヤー -->
 <div id="cyber-effects"></div>
 
 <!-- コントロールパネル (左上) -->
@@ -291,6 +290,21 @@
   </div>
 </div>
 
+<!-- 凡例パネル (右下) 独立化 -->
+<div id="legend-panel" class="cyber-panel">
+  <div class="panel-header" onclick="toggleSection('legend-content', 'btn-legend')" style="margin-bottom:0; padding-bottom: 5px;">
+    <h2>SYS_LEGEND</h2>
+    <button id="btn-legend" class="cyber-btn">▼ CLOSE</button>
+  </div>
+  <div id="legend-content" style="margin-top: 10px; padding-top: 10px; border-top: 1px dashed var(--neon-cyan);">
+    <i style="background: var(--color-route); color: var(--color-route);"></i>ROUTE_TRACK<br>
+    <i style="background: var(--color-step); color: var(--color-step);"></i>STEP_SHOCK<br>
+    <i style="background: var(--color-wheelie); color: var(--color-wheelie);"></i>WHEELIE_ACT<br>
+    <i style="background: var(--color-steep); color: var(--color-steep);"></i>STEEP_SLOPE<br>
+    <i style="background: var(--color-device); color: var(--color-device);"></i>LIVE_DEVICE<br>
+  </div>
+</div>
+
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
@@ -298,14 +312,18 @@
   function toggleSection(contentId, btnId) {
     const content = document.getElementById(contentId);
     const btn = document.getElementById(btnId);
+    const header = btn.closest('.panel-header');
+    
     if (content.classList.contains('collapsed')) {
       content.classList.remove('collapsed');
       btn.innerHTML = '▼ CLOSE';
       btn.classList.remove('collapsed-state');
+      if(contentId === 'legend-content') header.style.borderBottom = '2px solid var(--neon-cyan)';
     } else {
       content.classList.add('collapsed');
       btn.innerHTML = '▶ OPEN';
       btn.classList.add('collapsed-state');
+      if(contentId === 'legend-content') header.style.borderBottom = 'none';
     }
   }
 
@@ -316,8 +334,7 @@
   const SUPABASE_ANON_KEY = '__SUPABASE_ANON_KEY__';
 
   const supabaseClient = (SUPABASE_URL.startsWith('__')) 
-    ? null 
-    : window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+    ? null : window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
   const map = L.map('map', { zoomControl: false }).setView([33.883, 130.875], 15);
   L.control.zoom({ position: 'topright' }).addTo(map);
@@ -333,62 +350,55 @@
   currentBaseLayer.addTo(map);
   let currentTripLatLngs = null; 
 
-  // モードに応じてCSS変数を明示的に書き換える
-  function applyColorTheme(isCyber) {
-    const root = document.documentElement;
-    if (isCyber) {
-      root.style.setProperty('--color-route', '#0ff');
-      root.style.setProperty('--color-step', '#f0f');
-      root.style.setProperty('--color-wheelie', '#f90');
-      root.style.setProperty('--color-steep', '#ff0');
-      root.style.setProperty('--color-device', '#3f3');
-    } else {
-      root.style.setProperty('--color-route', '#16a085');
-      root.style.setProperty('--color-step', '#d63031');
-      root.style.setProperty('--color-wheelie', '#e17055');
-      root.style.setProperty('--color-steep', '#6c5ce7');
-      root.style.setProperty('--color-device', '#0984e3');
-    }
-  }
-  applyColorTheme(false); // 初期化
-
-  window.switchMapLayer = function(layerKey, btnElem) {
-    map.removeLayer(currentBaseLayer);
-    currentBaseLayer = layers[layerKey];
-    currentBaseLayer.addTo(map);
-
-    const isCyber = (layerKey === 'cyber');
-
-    if (isCyber) {
-      document.body.classList.add('cyber-mode');
-    } else {
-      document.body.classList.remove('cyber-mode');
-    }
-    
-    // UIパネルの色を再適用
-    applyColorTheme(isCyber);
-
-    document.querySelectorAll('.layer-btn').forEach(btn => btn.classList.remove('active'));
-    btnElem.classList.add('active');
-
-    // マーカー・ルートの再描画
-    updateBarrierDisplay();
-    updateDeviceDisplay();
-    if (currentTripLatLngs && currentTripLatLngs.length > 0) {
-      dataLayerGroup.clearLayers();
-      const routeColor = isCyber ? '#0ff' : '#16a085';
-      const routeWeight = isCyber ? 5 : 6;
-      L.polyline(currentTripLatLngs, { color: routeColor, weight: routeWeight, opacity: 0.9 }).addTo(dataLayerGroup);
-      renderStartEnd(currentTripLatLngs[0], currentTripLatLngs[currentTripLatLngs.length - 1]);
-    }
-  };
-
   const dataLayerGroup = L.layerGroup().addTo(map);
   const barrierLayerGroup = L.layerGroup().addTo(map);
   const deviceLayerGroup = L.layerGroup().addTo(map);
 
   let currentBarriers = [];
   let currentDevices = [];
+
+  // 描画順を制御し、必ずルート→マーカーの順に再描画する
+  function redrawAllMapElements() {
+    dataLayerGroup.clearLayers();
+    barrierLayerGroup.clearLayers();
+    deviceLayerGroup.clearLayers();
+
+    const isCyber = document.body.classList.contains('cyber-mode');
+
+    // 1. ルート線を先に描画（最背面）
+    if (currentTripLatLngs && currentTripLatLngs.length > 0) {
+      const routeColor = isCyber ? 'var(--neon-cyan)' : 'var(--color-route)';
+      const routeWeight = isCyber ? 5 : 6;
+      L.polyline(currentTripLatLngs, { 
+        color: routeColor, weight: routeWeight, opacity: 0.9, 
+        className: 'cyber-route-line' // このクラスにのみ発光フィルタを適用
+      }).addTo(dataLayerGroup);
+      
+      renderStartEnd(currentTripLatLngs[0], currentTripLatLngs[currentTripLatLngs.length - 1]);
+    }
+    
+    // 2. マーカー類を後に描画（前面）
+    updateBarrierDisplay();
+    updateDeviceDisplay();
+  }
+
+  window.switchMapLayer = function(layerKey, btnElem) {
+    map.removeLayer(currentBaseLayer);
+    currentBaseLayer = layers[layerKey];
+    currentBaseLayer.addTo(map);
+
+    if (layerKey === 'cyber') {
+      document.body.classList.add('cyber-mode');
+    } else {
+      document.body.classList.remove('cyber-mode');
+    }
+    
+    document.querySelectorAll('.layer-btn').forEach(btn => btn.classList.remove('active'));
+    btnElem.classList.add('active');
+
+    // モード切替時に描画順序を保ったまま再描画
+    redrawAllMapElements();
+  };
   
   const modeSelect = document.getElementById('mode-select');
   const dataTypeSelect = document.getElementById('datatype-select');
@@ -460,7 +470,6 @@
     const tripId = modeSelect.value;
     if (!tripId || !supabaseClient) return;
 
-    dataLayerGroup.clearLayers(); barrierLayerGroup.clearLayers();
     statusMsg.innerText = 'LOADING...';
     
     try {
@@ -482,17 +491,13 @@
 
       if (coordsArray.length > 0) {
         currentTripLatLngs = coordsArray.map(c => [c[1], c[0]]);
-        const isCyber = document.body.classList.contains('cyber-mode');
-        const routeColor = isCyber ? '#0ff' : '#16a085';
-        const routeWeight = isCyber ? 5 : 6;
-        L.polyline(currentTripLatLngs, { color: routeColor, weight: routeWeight, opacity: 0.9 }).addTo(dataLayerGroup);
         map.fitBounds(L.polyline(currentTripLatLngs).getBounds(), { padding: [30, 30] });
-        renderStartEnd(currentTripLatLngs[0], currentTripLatLngs[currentTripLatLngs.length - 1]);
       } else {
         currentTripLatLngs = null;
       }
       
-      updateBarrierDisplay(); statusMsg.innerText = '';
+      redrawAllMapElements();
+      statusMsg.innerText = '';
     } catch (err) { statusMsg.innerText = 'ERROR'; }
   }
 
@@ -500,7 +505,7 @@
     barrierLayerGroup.clearLayers();
     const isCyber = document.body.classList.contains('cyber-mode');
     
-    // JS側で色をハードコード管理し、切り替えを確実にする
+    // JS側でモードごとに色を確実に指定する
     const colorStep = isCyber ? '#f0f' : '#d63031';
     const colorWheelie = isCyber ? '#f90' : '#e17055';
     const colorSteep = isCyber ? '#ff0' : '#6c5ce7';
@@ -548,8 +553,8 @@
 
   function renderStartEnd(startPt, endPt) {
     const isCyber = document.body.classList.contains('cyber-mode');
-    const colorStart = isCyber ? '#0ff' : '#16a085';
-    const colorEnd = isCyber ? '#f0f' : '#d63031';
+    const colorStart = isCyber ? 'var(--neon-cyan)' : '#16a085';
+    const colorEnd = isCyber ? 'var(--neon-magenta)' : '#d63031';
 
     const createIcon = (t, c) => {
       const htmlStr = isCyber
@@ -560,44 +565,6 @@
     L.marker(startPt, { icon: createIcon('S', colorStart) }).addTo(dataLayerGroup);
     L.marker(endPt, { icon: createIcon('G', colorEnd) }).addTo(dataLayerGroup);
   }
-
-  const legend = L.control({ position: 'bottomright' });
-  legend.onAdd = function () {
-    const div = L.DomUtil.create('div', 'legend cyber-panel');
-    L.DomEvent.disableClickPropagation(div); 
-
-    window.toggleLegend = function(headerElem) {
-      const content = headerElem.nextElementSibling;
-      const btn = headerElem.querySelector('button');
-      if (content.style.display === 'none') {
-        content.style.display = 'block';
-        btn.innerHTML = '▼ CLOSE';
-        btn.classList.remove('collapsed-state');
-        headerElem.style.borderBottom = '2px solid var(--neon-cyan)';
-      } else {
-        content.style.display = 'none';
-        btn.innerHTML = '▶ OPEN';
-        btn.classList.add('collapsed-state');
-        headerElem.style.borderBottom = 'none';
-      }
-    };
-
-    div.innerHTML = `
-      <div class="panel-header" onclick="toggleLegend(this)" style="margin-bottom:0; padding-bottom: 5px;">
-        <h2>SYS_LEGEND</h2>
-        <button class="cyber-btn">▼ CLOSE</button>
-      </div>
-      <div id="legend-content" style="margin-top: 10px; padding-top: 5px;">
-        <i style="background: var(--color-route); color: var(--color-route);"></i>ROUTE_TRACK<br>
-        <i style="background: var(--color-step); color: var(--color-step);"></i>STEP_SHOCK<br>
-        <i style="background: var(--color-wheelie); color: var(--color-wheelie);"></i>WHEELIE_ACT<br>
-        <i style="background: var(--color-steep); color: var(--color-steep);"></i>STEEP_SLOPE<br>
-        <i style="background: var(--color-device); color: var(--color-device);"></i>LIVE_DEVICE<br>
-      </div>
-    `;
-    return div;
-  };
-  legend.addTo(map);
 
   fetchTripList();
   fetchDeviceStatus();
