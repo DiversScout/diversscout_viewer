@@ -10,6 +10,14 @@
   
   <style>
     :root {
+      /* デフォルトのフラットカラー（グラスモーフィズムデザイン時の色） */
+      --color-route: #10b981;
+      --color-step: #ef4444;
+      --color-wheelie: #f97316;
+      --color-steep: #8b5cf6;
+      --color-device: #0ea5e9;
+      
+      /* CYBER_MODE用のネオンカラー */
       --neon-cyan: #0ff;
       --neon-magenta: #f0f;
       --neon-yellow: #ff0;
@@ -17,12 +25,6 @@
       --neon-green: #3f3;
       
       --bg-dark: rgba(5, 5, 10, 0.9);
-      
-      --color-route: var(--neon-cyan);
-      --color-step: var(--neon-magenta);
-      --color-wheelie: var(--neon-orange);
-      --color-steep: var(--neon-yellow);
-      --color-device: var(--neon-green);
     }
 
     body, html { 
@@ -30,55 +32,63 @@
       font-family: 'Orbitron', -apple-system, sans-serif; 
       overflow: hidden;
       color: var(--neon-cyan);
-      /* 通常時の背景色 */
       background-color: #f0f0f0; 
     }
+    
+    /* CYBER_MODE時は配色をネオンカラーに上書き */
     body.cyber-mode {
       background-color: #000;
+      --color-route: var(--neon-cyan);
+      --color-step: var(--neon-magenta);
+      --color-wheelie: var(--neon-orange);
+      --color-steep: var(--neon-yellow);
+      --color-device: var(--neon-green);
     }
 
     /* マップ領域 */
     #map { 
       position: absolute; top: 0; left: 0; width: 100vw; height: 100vh; z-index: 1; 
-      background: #ddd; /* 通常時のマップ背景 */
+      background: #ddd; 
     }
     body.cyber-mode #map {
       background: #000;
     }
 
     /* =========================================
-       サイバーエフェクト専用レイヤー（分離）
+       サイバーエフェクト専用レイヤー
        ========================================= */
     #cyber-effects {
-      display: none; /* デフォルトは完全に非表示 */
+      display: none; 
       position: absolute; top: 0; left: 0; width: 100vw; height: 100vh;
-      pointer-events: none; z-index: 9998;
+      pointer-events: none; z-index: 5000; /* Leafletより上、UIより下 */
     }
     body.cyber-mode #cyber-effects {
-      display: block; /* CYBER_MODE時のみ表示 */
+      display: block; 
     }
-    /* ビネット効果（四隅の暗がり） */
     #cyber-effects::before {
       content: ""; position: absolute; top: 0; left: 0; width: 100%; height: 100%;
       box-shadow: inset 0 0 150px rgba(0,0,0,0.9);
     }
-    /* スキャンライン（波模様） */
     #cyber-effects::after {
       content: ""; position: absolute; top: 0; left: 0; width: 100%; height: 100%;
       background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.3) 50%);
       background-size: 100% 4px;
     }
 
-    /* CYBER_MODE用のマップ色反転フィルター */
+    /* CYBER_MODE用のマップ色反転 */
     .cyber-tile {
       filter: invert(100%) sepia(20%) hue-rotate(180deg) brightness(70%) contrast(150%);
     }
 
-    /* CYBER_MODE時のみルート線を発光させる */
     body.cyber-mode .leaflet-overlay-pane svg path {
       filter: drop-shadow(0 0 5px rgba(255, 255, 255, 0.5));
     }
 
+    /* LeafletのUIがエフェクトに埋もれないようz-indexを引き上げ */
+    .leaflet-control-container {
+      position: relative;
+      z-index: 10000;
+    }
 
     /* パネル共通スタイル */
     .cyber-panel {
@@ -116,19 +126,13 @@
       transition: all 0.2s ease-in-out;
       text-transform: uppercase;
     }
-    .cyber-btn:hover {
-      background: var(--neon-cyan);
-      color: #000;
-    }
+    .cyber-btn:hover { background: var(--neon-cyan); color: #000; }
     .cyber-btn.collapsed-state {
       color: var(--neon-orange);
       border-color: var(--neon-orange);
       box-shadow: 0 0 5px var(--neon-orange);
     }
-    .cyber-btn.collapsed-state:hover {
-      background: var(--neon-orange);
-      color: #000;
-    }
+    .cyber-btn.collapsed-state:hover { background: var(--neon-orange); color: #000; }
 
     /* レイヤー切り替え用ボタングループ */
     .layer-btn-group {
@@ -141,15 +145,14 @@
       cursor: pointer; transition: all 0.2s; text-align: center;
     }
     .layer-btn:hover { background: rgba(0, 255, 255, 0.2); }
-    .layer-btn.active {
-      background: var(--neon-cyan); color: #000; box-shadow: 0 0 10px var(--neon-cyan); font-weight: bold;
-    }
+    .layer-btn.active { background: var(--neon-cyan); color: #000; box-shadow: 0 0 10px var(--neon-cyan); font-weight: bold; }
 
     .collapsed { display: none !important; }
 
     /* コントロールパネル */
     #control-panel { 
-      position: absolute; top: 20px; left: 20px; z-index: 1000; 
+      position: absolute; top: 20px; left: 20px; 
+      z-index: 10000; /* 最前面に配置してスライダー操作を確保 */
       width: 320px; 
     }
     #control-content {
@@ -193,7 +196,10 @@
     }
 
     .range-container { display: flex; align-items: center; gap: 10px; }
-    input[type=range] { -webkit-appearance: none; flex: 1; background: transparent; }
+    input[type=range] { 
+      -webkit-appearance: none; flex: 1; background: transparent; 
+      position: relative; z-index: 10; cursor: pointer; 
+    }
     input[type=range]:focus { outline: none; }
     input[type=range]::-webkit-slider-runnable-track { width: 100%; height: 2px; background: currentColor; box-shadow: 0 0 5px currentColor; cursor: pointer; }
     input[type=range]::-webkit-slider-thumb { 
@@ -360,26 +366,37 @@
     topo: L.tileLayer('https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png', { maxZoom: 17, attribution: '© OpenTopoMap' })
   };
 
-  // デフォルトはフィルターなしOSM（cyber-modeクラスは付与しない）
+  // デフォルトはフィルターなしOSM
   let currentBaseLayer = layers.osm;
   currentBaseLayer.addTo(map);
 
-  // レイヤー切り替え関数（波模様と色反転のON/OFFも制御）
+  let currentTripLatLngs = null; // 再描画用の座標保持
+
+  // レイヤー・モード切り替え関数
   window.switchMapLayer = function(layerKey, btnElem) {
     map.removeLayer(currentBaseLayer);
     currentBaseLayer = layers[layerKey];
     currentBaseLayer.addTo(map);
 
-    // CYBER_MODEの時だけbodyにクラスを付与し、エフェクトレイヤーを表示させる
+    // CYBER_MODE時のみ専用クラスを付与
     if (layerKey === 'cyber') {
       document.body.classList.add('cyber-mode');
     } else {
       document.body.classList.remove('cyber-mode');
     }
 
-    // ボタンのアクティブ状態を更新
+    // ボタンのハイライト更新
     document.querySelectorAll('.layer-btn').forEach(btn => btn.classList.remove('active'));
     btnElem.classList.add('active');
+
+    // モード切替に伴い、マーカー類のデザインを再描画
+    updateBarrierDisplay();
+    updateDeviceDisplay();
+    if (currentTripLatLngs && currentTripLatLngs.length > 0) {
+      dataLayerGroup.clearLayers();
+      L.polyline(currentTripLatLngs, { color: 'var(--color-route)', weight: 6, opacity: 0.9 }).addTo(dataLayerGroup);
+      renderStartEnd(currentTripLatLngs[0], currentTripLatLngs[currentTripLatLngs.length - 1]);
+    }
   };
 
   const dataLayerGroup = L.layerGroup().addTo(map);
@@ -482,10 +499,12 @@
       else if (typeof rawGeom === 'string') coordsArray = rawGeom.replace(/^.*LINESTRING\s*\(/i, '').replace(/\).*$/, '').split(',').map(p => p.trim().split(/\s+/).map(Number));
 
       if (coordsArray.length > 0) {
-        const latLngs = coordsArray.map(c => [c[1], c[0]]);
-        L.polyline(latLngs, { color: 'var(--color-route)', weight: 5, opacity: 0.9 }).addTo(dataLayerGroup);
-        map.fitBounds(L.polyline(latLngs).getBounds(), { padding: [30, 30] });
-        renderStartEnd(latLngs[0], latLngs[latLngs.length - 1]);
+        currentTripLatLngs = coordsArray.map(c => [c[1], c[0]]);
+        L.polyline(currentTripLatLngs, { color: 'var(--color-route)', weight: 6, opacity: 0.9 }).addTo(dataLayerGroup);
+        map.fitBounds(L.polyline(currentTripLatLngs).getBounds(), { padding: [30, 30] });
+        renderStartEnd(currentTripLatLngs[0], currentTripLatLngs[currentTripLatLngs.length - 1]);
+      } else {
+        currentTripLatLngs = null;
       }
       
       updateBarrierDisplay(); statusMsg.innerText = '';
@@ -499,6 +518,8 @@
     const colorWheelie = style.getPropertyValue('--color-wheelie').trim();
     const colorSteep = style.getPropertyValue('--color-steep').trim();
 
+    const isCyber = document.body.classList.contains('cyber-mode');
+
     currentBarriers.forEach(b => {
       let draw = false; let color = ''; let label = ''; let radius = 6;
       if (b.barrier_type === 'step' && chkStep.checked && b.intensity >= parseFloat(stepSlider.value)) {
@@ -511,7 +532,14 @@
 
       if (draw) {
         const coords = parsePointGeom(b.geom);
-        if (coords) L.circleMarker(coords, { radius: radius, fillColor: '#000', color: color, weight: 3, fillOpacity: 0.8 }).bindTooltip(label, { direction: 'top' }).addTo(barrierLayerGroup);
+        if (coords) {
+          // モードによってスタイルを切り替え
+          const markerOpts = isCyber
+            ? { radius: radius, fillColor: '#000', color: color, weight: 3, fillOpacity: 0.8 }
+            : { radius: radius, fillColor: color, color: '#ffffff', weight: 1.5, fillOpacity: 0.85 };
+
+          L.circleMarker(coords, markerOpts).bindTooltip(label, { direction: 'top' }).addTo(barrierLayerGroup);
+        }
       }
     });
   }
@@ -519,17 +547,32 @@
   function updateDeviceDisplay() {
     deviceLayerGroup.clearLayers();
     if (!chkDevice.checked) return;
+    
     const colorDevice = getComputedStyle(document.body).getPropertyValue('--color-device').trim();
+    const isCyber = document.body.classList.contains('cyber-mode');
 
     currentDevices.forEach(d => {
       if (d.lat == null || d.lon == null) return;
       const tooltipHtml = `<div style="font-size: 11px; line-height: 1.6;"><strong style="color: ${colorDevice}; font-size: 13px;">${d.device_id}</strong><br>NAME: ${d.device_name || 'UNKNOWN'}<br>STAT: ${d.status}<br>TEMP: ${d.temperature} C<br>FIXD: ${d.is_fixed ? 'YES' : 'NO'}<br>TIME: ${new Date(d.jst).toLocaleTimeString()}</div>`;
-      L.circleMarker([d.lat, d.lon], { radius: 7, fillColor: '#000', color: colorDevice, weight: 3, fillOpacity: 0.9 }).bindTooltip(tooltipHtml, { direction: 'top' }).addTo(deviceLayerGroup);
+      
+      const markerOpts = isCyber
+        ? { radius: 7, fillColor: '#000', color: colorDevice, weight: 3, fillOpacity: 0.9 }
+        : { radius: 7, fillColor: colorDevice, color: '#ffffff', weight: 2, fillOpacity: 1.0 };
+        
+      L.circleMarker([d.lat, d.lon], markerOpts).bindTooltip(tooltipHtml, { direction: 'top' }).addTo(deviceLayerGroup);
     });
   }
 
   function renderStartEnd(startPt, endPt) {
-    const createIcon = (t, c) => L.divIcon({ className: '', html: `<div style="background:#000; color:${c}; font-size:12px; font-weight:bold; width:22px; height:22px; line-height:20px; text-align:center; border:2px solid ${c}; box-shadow:0 0 10px ${c};">${t}</div>`, iconSize: [26, 26], iconAnchor: [13, 13] });
+    const isCyber = document.body.classList.contains('cyber-mode');
+
+    const createIcon = (t, c) => {
+      const htmlStr = isCyber
+        ? `<div style="background:#000; color:${c}; font-size:12px; font-weight:bold; width:22px; height:22px; line-height:20px; text-align:center; border:2px solid ${c}; box-shadow:0 0 10px ${c};">${t}</div>`
+        : `<div style="background:${c}; color:white; font-size:12px; font-weight:bold; width:24px; height:24px; line-height:24px; text-align:center; border-radius:50%; border:2px solid white; box-shadow:0 3px 6px rgba(0,0,0,0.4);">${t}</div>`;
+      return L.divIcon({ className: '', html: htmlStr, iconSize: [26, 26], iconAnchor: [13, 13] });
+    };
+
     L.marker(startPt, { icon: createIcon('S', 'var(--color-route)') }).addTo(dataLayerGroup);
     L.marker(endPt, { icon: createIcon('G', 'var(--color-step)') }).addTo(dataLayerGroup);
   }
