@@ -33,13 +33,13 @@
       color: var(--neon-cyan);
     }
 
-    /* CRTスキャンライン & ビネット効果 */
-    body::before {
+    /* CRTスキャンライン & ビネット効果 (CYBER_MODE時のみ適用) */
+    body.cyber-mode::before {
       content: ""; position: absolute; top: 0; left: 0; width: 100vw; height: 100vh;
       box-shadow: inset 0 0 150px rgba(0,0,0,0.9);
       z-index: 9998; pointer-events: none;
     }
-    body::after {
+    body.cyber-mode::after {
       content: ""; position: absolute; top: 0; left: 0; width: 100vw; height: 100vh;
       background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.3) 50%);
       background-size: 100% 4px;
@@ -51,12 +51,13 @@
       background: #000;
     }
 
-    /* CYBERモード用のマップフィルター */
+    /* CYBER_MODE時のマップ色反転 */
     .cyber-tile {
       filter: invert(100%) sepia(20%) hue-rotate(180deg) brightness(70%) contrast(150%);
     }
 
-    .leaflet-overlay-pane svg path {
+    /* CYBER_MODE時のみルート線を発光させる */
+    body.cyber-mode .leaflet-overlay-pane svg path {
       filter: drop-shadow(0 0 5px rgba(255, 255, 255, 0.5));
     }
 
@@ -337,15 +338,22 @@
     topo: L.tileLayer('https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png', { maxZoom: 17, attribution: '© OpenTopoMap' })
   };
 
-  // デフォルトはフィルターなしOSM
+  // デフォルトはフィルターなしOSM（cyber-modeクラスは付与しない）
   let currentBaseLayer = layers.osm;
   currentBaseLayer.addTo(map);
 
-  // レイヤー切り替え関数
+  // レイヤー切り替え関数（波模様と色反転のON/OFFも制御）
   window.switchMapLayer = function(layerKey, btnElem) {
     map.removeLayer(currentBaseLayer);
     currentBaseLayer = layers[layerKey];
     currentBaseLayer.addTo(map);
+
+    // CYBER_MODEの時だけbodyにクラスを付与し、スキャンラインなどを有効化する
+    if (layerKey === 'cyber') {
+      document.body.classList.add('cyber-mode');
+    } else {
+      document.body.classList.remove('cyber-mode');
+    }
 
     // ボタンのアクティブ状態を更新
     document.querySelectorAll('.layer-btn').forEach(btn => btn.classList.remove('active'));
