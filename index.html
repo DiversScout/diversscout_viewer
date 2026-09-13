@@ -518,7 +518,7 @@
     } catch (err) { statusMsg.innerText = 'ERROR'; }
   }
 
-  // バリア（それ以外）は HOVER (bindTooltip) に設定
+  // バリアは HOVER (bindTooltip)
   function updateBarrierDisplay() {
     barrierLayerGroup.clearLayers();
     const isCyber = document.body.classList.contains('cyber-mode');
@@ -578,21 +578,32 @@
     });
   }
 
-  // USER REPORT は CLICK (bindPopup) に設定
+  // タイムスタンプが24時間経過しているか判定するヘルパー関数
+  function isOlderThan24Hours(timestampStr) {
+    if (!timestampStr) return true;
+    const itemDate = new Date(timestampStr).getTime();
+    const now = new Date().getTime();
+    return (now - itemDate) > (24 * 60 * 60 * 1000);
+  }
+
+  // USER REPORT は CLICK (bindPopup) 
   function updateAlertDisplay() {
     alertLayerGroup.clearLayers();
     if (!chkAlert.checked) return;
 
     const isCyber = document.body.classList.contains('cyber-mode');
-    const colorAlert = isCyber ? '#ff2a85' : '#e84393';
-
+    
     currentStandaloneAlerts.forEach(alert => {
       if (alert.lat == null || alert.lon == null) return;
       
+      const isOld = isOlderThan24Hours(alert.created_at);
+      const colorAlert = isCyber ? '#ff2a85' : '#e84393';
+      const bgColor = isOld ? 'transparent' : (isCyber ? '#000' : colorAlert);
+      
       const size = 18;
       const htmlStr = isCyber
-        ? `<div style="width:${size}px; height:${size}px; background:#000; border:2px solid ${colorAlert}; box-shadow:0 0 10px ${colorAlert}; transform: rotate(45deg);"></div>`
-        : `<div style="width:${size}px; height:${size}px; background:${colorAlert}; border:2px solid #fff; box-shadow:0 0 5px rgba(0,0,0,0.5); transform: rotate(45deg);"></div>`;
+        ? `<div style="width:${size}px; height:${size}px; background:${bgColor}; border:2px solid ${colorAlert}; box-shadow:0 0 10px ${colorAlert}; transform: rotate(45deg);"></div>`
+        : `<div style="width:${size}px; height:${size}px; background:${bgColor}; border:2px solid ${isOld ? colorAlert : '#fff'}; box-shadow:0 0 5px rgba(0,0,0,0.5); transform: rotate(45deg);"></div>`;
       
       const icon = L.divIcon({ className: '', html: htmlStr, iconSize: [size, size], iconAnchor: [size/2, size/2] });
       const marker = L.marker([alert.lat, alert.lon], { icon: icon });
@@ -613,15 +624,39 @@
   }
 
   // TRACKING DEVICE は CLICK (bindPopup) に設定
+  // 閾値に応じた色分け と形状変更、24時間判定を追加
   function updateDeviceDisplay() {
     deviceLayerGroup.clearLayers();
     if (!chkDevice.checked) return;
 
     const isCyber = document.body.classList.contains('cyber-mode');
-    const colorDevice = isCyber ? '#3f3' : '#0984e3';
 
     currentDevices.forEach(d => {
       if (d.lat == null || d.lon == null) return;
+      
+      // 温度による色の判定
+      let colorDevice = '';
+      if (d.temperature >= 31) {
+        colorDevice = '#ff0000'; // 危険 (31℃以上)
+      } else if (d.temperature >= 28) {
+        colorDevice = '#ff9900'; // 厳重警戒 (28～31℃)
+      } else if (d.temperature >= 25) {
+        colorDevice = '#ffff00'; // 警戒 (25～28℃)
+      } else {
+        colorDevice = '#66ccff'; // 注意 (25℃未満)
+      }
+
+      const isOld = isOlderThan24Hours(d.jst);
+      const bgColor = isOld ? 'transparent' : (isCyber ? '#000' : colorDevice);
+      
+      // 形状を正方形に変更
+      const size = 16;
+      const htmlStr = isCyber
+        ? `<div style="width:${size}px; height:${size}px; background:${bgColor}; border:2px solid ${colorDevice}; box-shadow:0 0 10px ${colorDevice};"></div>`
+        : `<div style="width:${size}px; height:${size}px; background:${bgColor}; border:2px solid ${isOld ? colorDevice : '#fff'}; box-shadow:0 0 5px rgba(0,0,0,0.5);"></div>`;
+
+      const icon = L.divIcon({ className: '', html: htmlStr, iconSize: [size, size], iconAnchor: [size/2, size/2] });
+      const marker = L.marker([d.lat, d.lon], { icon: icon });
       
       const popupHtml = `<div style="width: 150px; font-size: 11px; line-height: 1.5; text-align: left; max-height: 80px; overflow-y: auto; padding-right: 4px;">` +
         `<strong style="color: ${colorDevice}; font-size: 12px; display: block; border-bottom: 1px dashed ${colorDevice}; margin-bottom: 3px; padding-bottom: 2px;">${d.device_id}</strong>` +
@@ -631,12 +666,8 @@
         `FIXD: ${d.is_fixed ? 'YES' : 'NO'}<br>` +
         `TIME: ${new Date(d.jst).toLocaleTimeString()}` +
         `</div>`;
-      
-      const markerOpts = isCyber
-        ? { radius: 7, fillColor: '#000', color: colorDevice, weight: 3, fillOpacity: 0.9 }
-        : { radius: 8, fillColor: colorDevice, color: '#ffffff', weight: 2, fillOpacity: 0.9 };
 
-      L.circleMarker([d.lat, d.lon], markerOpts).bindPopup(popupHtml, { className: 'cyber-popup' }).addTo(deviceLayerGroup);
+      marker.bindPopup(popupHtml, { className: 'cyber-popup' }).addTo(deviceLayerGroup);
     });
   }
 
