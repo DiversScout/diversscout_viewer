@@ -159,14 +159,22 @@
     #status-msg { font-size: 11px; font-weight: bold; color: #ff0; text-shadow: 0 0 5px #ff0; text-transform: uppercase; }
     .color-dot { width: 10px; height: 10px; display: inline-block; box-shadow: 0 0 8px currentColor; border: 1px solid #fff; }
 
-    /* Leaflet ツールチップ */
-    .leaflet-tooltip { 
-      background: rgba(0, 0, 0, 0.9); border: 1px solid var(--neon-cyan); color: var(--neon-cyan); 
-      box-shadow: 0 0 10px var(--neon-cyan); font-family: 'Orbitron', sans-serif; text-shadow: 0 0 5px var(--neon-cyan); border-radius: 0;
-      white-space: normal; 
-      word-break: break-word; 
+    /* Leaflet ポップアップ (サイバーパンク風カスタム) */
+    .cyber-popup .leaflet-popup-content-wrapper {
+      background: var(--bg-dark);
+      border: 2px solid var(--neon-cyan);
+      box-shadow: 0 0 15px var(--neon-cyan), inset 0 0 10px rgba(0, 255, 255, 0.2);
+      color: var(--neon-cyan);
+      font-family: 'Orbitron', sans-serif;
+      border-radius: 0;
     }
-    .leaflet-tooltip-top:before { border-top-color: var(--neon-cyan); }
+    .cyber-popup .leaflet-popup-tip {
+      background: var(--bg-dark);
+      border: 1px solid var(--neon-cyan);
+    }
+    .cyber-popup .leaflet-popup-close-button {
+      color: var(--neon-cyan) !important;
+    }
   </style>
 </head>
 <body>
@@ -524,7 +532,7 @@
         if (coords) {
           const hasAnnotation = b.annotations && b.annotations.length > 0;
           let marker;
-          let tooltipHtml = '';
+          let popupHtml = '';
 
           if (hasAnnotation) {
             const size = radius * 2.5; 
@@ -535,26 +543,27 @@
             const icon = L.divIcon({ className: '', html: htmlStr, iconSize: [size, size], iconAnchor: [size/2, size/2] });
             marker = L.marker(coords, { icon: icon });
 
-            tooltipHtml = `<div style="text-align: center;">`;
-            tooltipHtml += `<div style="font-weight: bold; border-bottom: 1px dashed ${color}; margin-bottom: 5px; padding-bottom: 3px;">${baseLabel}</div>`;
+            popupHtml = `<div style="text-align: center;">`;
+            popupHtml += `<div style="font-weight: bold; border-bottom: 1px dashed ${color}; margin-bottom: 5px; padding-bottom: 3px;">${baseLabel}</div>`;
             
             b.annotations.forEach(ann => {
               if (ann.image_url) {
-                tooltipHtml += `<img src="${ann.image_url}" alt="Alert" style="width: 100%; height: auto; border-radius: 4px; margin-bottom: 4px;" />`;
+                popupHtml += `<img src="${ann.image_url}" alt="Alert" style="width: 100%; height: auto; border-radius: 4px; margin-bottom: 4px;" />`;
               }
-              tooltipHtml += `<div style="font-size: 11px; line-height: 1.4; text-align: left; width: 140px; max-height: 70px; overflow-y: auto; padding-right: 4px; border: 1px solid rgba(0,255,255,0.2); background: rgba(0,0,0,0.5);">${ann.comment || 'NO COMMENT'}</div>`;
+              popupHtml += `<div style="font-size: 11px; line-height: 1.4; text-align: left; width: 140px; max-height: 70px; overflow-y: auto; padding-right: 4px; border: 1px solid rgba(0,255,255,0.2); background: rgba(0,0,0,0.5);">${ann.comment || 'NO COMMENT'}</div>`;
             });
-            tooltipHtml += `</div>`;
+            popupHtml += `</div>`;
           } else {
             const markerOpts = isCyber
               ? { radius: radius, fillColor: '#000', color: color, weight: 3, fillOpacity: 0.8 }
               : { radius: radius, fillColor: color, color: '#ffffff', weight: 1.5, fillOpacity: 0.85 };
             marker = L.circleMarker(coords, markerOpts);
 
-            tooltipHtml = `<div style="width: 120px; text-align: center; font-size: 11px; word-break: break-word;">${baseLabel}</div>`;
+            popupHtml = `<div style="width: 120px; text-align: center; font-size: 11px; word-break: break-word;">${baseLabel}</div>`;
           }
 
-          marker.bindTooltip(tooltipHtml, { direction: 'top' }).addTo(barrierLayerGroup);
+          // bindTooltip から bindPopupに変更（クリックで固定表示＆スクロール可能に）
+          marker.bindPopup(popupHtml, { className: 'cyber-popup' }).addTo(barrierLayerGroup);
         }
       }
     });
@@ -579,18 +588,18 @@
       const icon = L.divIcon({ className: '', html: htmlStr, iconSize: [size, size], iconAnchor: [size/2, size/2] });
       const marker = L.marker([alert.lat, alert.lon], { icon: icon });
 
-      let tooltipHtml = `<div style="text-align: center;">`;
-      tooltipHtml += `<div style="font-weight: bold; border-bottom: 1px dashed ${colorAlert}; margin-bottom: 5px; padding-bottom: 3px; color: ${colorAlert};">USER REPORT</div>`;
+      let popupHtml = `<div style="text-align: center;">`;
+      popupHtml += `<div style="font-weight: bold; border-bottom: 1px dashed ${colorAlert}; margin-bottom: 5px; padding-bottom: 3px; color: ${colorAlert};">USER REPORT</div>`;
       
       if (alert.image_url) {
-        tooltipHtml += `<img src="${alert.image_url}" alt="Alert" style="width: 100%; height: auto; border-radius: 4px; margin-bottom: 4px;" />`;
+        popupHtml += `<img src="${alert.image_url}" alt="Alert" style="width: 100%; height: auto; border-radius: 4px; margin-bottom: 4px;" />`;
       }
       
-      tooltipHtml += `<div style="font-size: 11px; line-height: 1.4; text-align: left; margin-bottom: 4px; width: 140px; max-height: 70px; overflow-y: auto; padding-right: 4px; border: 1px solid rgba(255,42,133,0.2); background: rgba(0,0,0,0.5);">${alert.comment || 'NO COMMENT'}</div>`;
-      tooltipHtml += `<div style="font-size: 9px; margin-top: 4px; opacity: 0.7;">${new Date(alert.created_at).toLocaleString('ja-JP')}</div>`;
-      tooltipHtml += `</div>`;
+      popupHtml += `<div style="font-size: 11px; line-height: 1.4; text-align: left; margin-bottom: 4px; width: 140px; max-height: 70px; overflow-y: auto; padding-right: 4px; border: 1px solid rgba(255,42,133,0.2); background: rgba(0,0,0,0.5);">${alert.comment || 'NO COMMENT'}</div>`;
+      popupHtml += `<div style="font-size: 9px; margin-top: 4px; opacity: 0.7;">${new Date(alert.created_at).toLocaleString('ja-JP')}</div>`;
+      popupHtml += `</div>`;
 
-      marker.bindTooltip(tooltipHtml, { direction: 'top' }).addTo(alertLayerGroup);
+      marker.bindPopup(popupHtml, { className: 'cyber-popup' }).addTo(alertLayerGroup);
     });
   }
 
@@ -605,8 +614,7 @@
     currentDevices.forEach(d => {
       if (d.lat == null || d.lon == null) return;
       
-      // 幅・高さを制限し、はみ出た部分はスクロールするように調整
-      const tooltipHtml = `<div style="width: 150px; font-size: 11px; line-height: 1.5; text-align: left; max-height: 80px; overflow-y: auto; padding-right: 4px;">` +
+      const popupHtml = `<div style="width: 150px; font-size: 11px; line-height: 1.5; text-align: left; max-height: 80px; overflow-y: auto; padding-right: 4px;">` +
         `<strong style="color: ${colorDevice}; font-size: 12px; display: block; border-bottom: 1px dashed ${colorDevice}; margin-bottom: 3px; padding-bottom: 2px;">${d.device_id}</strong>` +
         `NAME: ${d.device_name || 'UNKNOWN'}<br>` +
         `STAT: ${d.status}<br>` +
@@ -619,7 +627,7 @@
         ? { radius: 7, fillColor: '#000', color: colorDevice, weight: 3, fillOpacity: 0.9 }
         : { radius: 8, fillColor: colorDevice, color: '#ffffff', weight: 2, fillOpacity: 0.9 };
 
-      L.circleMarker([d.lat, d.lon], markerOpts).bindTooltip(tooltipHtml, { direction: 'top' }).addTo(deviceLayerGroup);
+      L.circleMarker([d.lat, d.lon], markerOpts).bindPopup(popupHtml, { className: 'cyber-popup' }).addTo(deviceLayerGroup);
     });
   }
 
