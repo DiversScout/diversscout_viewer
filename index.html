@@ -78,24 +78,24 @@
       background: var(--bg-dark);
       border: 2px solid var(--neon-cyan);
       box-shadow: 0 0 15px var(--neon-cyan), inset 0 0 15px rgba(0, 255, 255, 0.2);
-      padding: 15px;
+      padding: 10px; /* 余白を縮小 */
       z-index: 10000;
     }
 
     .panel-header {
       display: flex; justify-content: space-between; align-items: center;
       cursor: pointer;
-      border-bottom: 2px solid var(--neon-cyan); padding-bottom: 8px;
-      margin-bottom: 10px;
+      border-bottom: 2px solid var(--neon-cyan); padding-bottom: 6px; /* 余白縮小 */
+      margin-bottom: 8px; /* 余白縮小 */
       transition: background 0.2s;
     }
     .panel-header:hover { background: rgba(0, 255, 255, 0.15); }
-    .panel-header h2 { margin: 0; font-size: 14px; font-weight: 900; letter-spacing: 0.1em; text-shadow: 0 0 8px var(--neon-cyan); }
+    .panel-header h2 { margin: 0; font-size: 13px; font-weight: 900; letter-spacing: 0.1em; text-shadow: 0 0 8px var(--neon-cyan); }
     
     .cyber-btn {
       background: rgba(0, 0, 0, 0.8); color: var(--neon-cyan);
-      border: 1px solid var(--neon-cyan); padding: 4px 8px;
-      font-family: 'Orbitron', sans-serif; font-size: 11px; font-weight: bold; cursor: pointer;
+      border: 1px solid var(--neon-cyan); padding: 3px 6px; /* ボタン余白縮小 */
+      font-family: 'Orbitron', sans-serif; font-size: 10px; font-weight: bold; cursor: pointer;
       box-shadow: 0 0 5px var(--neon-cyan); transition: all 0.2s ease-in-out; text-transform: uppercase;
     }
     .cyber-btn:hover { background: var(--neon-cyan); color: #000; }
@@ -104,60 +104,60 @@
 
     .collapsed { display: none !important; }
 
-    #control-panel { position: absolute; top: 20px; left: 20px; width: 320px; }
+    #control-panel { position: absolute; top: 15px; left: 15px; width: 300px; } /* 全体幅と位置調整 */
     #control-content {
-      display: flex; flex-direction: column; gap: 20px;
-      max-height: calc(100vh - 120px); overflow-y: auto; padding-right: 5px;
+      display: flex; flex-direction: column; gap: 10px; /* セクション間の隙間を縮小 */
+      max-height: calc(100vh - 80px); overflow-y: auto; padding-right: 5px;
     }
     #control-content::-webkit-scrollbar { width: 4px; }
     #control-content::-webkit-scrollbar-thumb { background: var(--neon-cyan); box-shadow: 0 0 5px var(--neon-cyan); }
 
     #legend-panel { position: absolute; bottom: 25px; right: 20px; width: 220px; }
-    #legend-content { font-size: 12px; color: var(--neon-cyan); line-height: 22px; font-family: 'Orbitron', sans-serif; }
-    #legend-content i { width: 12px; height: 12px; float: left; margin-top: 5px; margin-right: 10px; box-shadow: 0 0 8px currentColor; }
+    #legend-content { font-size: 11px; color: var(--neon-cyan); line-height: 20px; font-family: 'Orbitron', sans-serif; }
+    #legend-content i { width: 10px; height: 10px; float: left; margin-top: 5px; margin-right: 8px; box-shadow: 0 0 8px currentColor; }
 
-    .layer-btn-group { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+    .layer-btn-group { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
     .layer-btn {
-      background: rgba(0, 0, 0, 0.8); color: var(--neon-cyan); border: 1px solid var(--neon-cyan); padding: 8px 4px;
-      font-family: 'Orbitron', sans-serif; font-size: 10px; cursor: pointer; transition: all 0.2s; text-align: center;
+      background: rgba(0, 0, 0, 0.8); color: var(--neon-cyan); border: 1px solid var(--neon-cyan); padding: 6px 4px;
+      font-family: 'Orbitron', sans-serif; font-size: 9px; cursor: pointer; transition: all 0.2s; text-align: center;
     }
     .layer-btn:hover { background: rgba(0, 255, 255, 0.2); }
     .layer-btn.active { background: var(--neon-cyan); color: #000; box-shadow: 0 0 10px var(--neon-cyan); font-weight: bold; }
 
-    .panel-section { display: flex; flex-direction: column; gap: 12px; }
-    .panel-section h3 { margin: 0; font-size: 13px; font-weight: 700; letter-spacing: 0.1em; border-bottom: 1px dashed var(--neon-cyan); padding-bottom: 4px; text-shadow: 0 0 5px var(--neon-cyan); opacity: 0.8; }
-    .control-group { display: flex; flex-direction: column; gap: 6px; }
+    .panel-section { display: flex; flex-direction: column; gap: 8px; } /* 項目間余白縮小 */
+    .panel-section h3 { margin: 0; font-size: 11px; font-weight: 700; letter-spacing: 0.1em; border-bottom: 1px dashed var(--neon-cyan); padding-bottom: 2px; text-shadow: 0 0 5px var(--neon-cyan); opacity: 0.8; }
+    .control-group { display: flex; flex-direction: column; gap: 4px; }
     .control-header { display: flex; justify-content: space-between; align-items: center; }
-    .control-label { font-size: 13px; display: flex; align-items: center; gap: 8px; text-shadow: 0 0 5px currentColor; }
+    .control-label { font-size: 11px; display: flex; align-items: center; gap: 6px; text-shadow: 0 0 5px currentColor; }
 
     select { 
-      width: 100%; padding: 8px 10px; font-size: 12px; font-family: 'Orbitron', sans-serif;
+      width: 100%; padding: 5px 8px; font-size: 10px; font-family: 'Orbitron', sans-serif;
       background: rgba(0,0,0,0.8); color: var(--neon-cyan); border: 1px solid var(--neon-cyan); box-shadow: 0 0 5px var(--neon-cyan);
       outline: none; cursor: pointer; text-transform: uppercase;
     }
     select:hover { background: rgba(0, 255, 255, 0.15); }
     select option { background: #000; color: var(--neon-cyan); }
 
-    .cyber-checkbox { position: relative; display: inline-block; width: 22px; height: 22px; cursor: pointer; }
+    .cyber-checkbox { position: relative; display: inline-block; width: 16px; height: 16px; cursor: pointer; } /* チェックボックス小型化 */
     .cyber-checkbox input { opacity: 0; width: 0; height: 0; }
-    .checkmark { position: absolute; top: 0; left: 0; right: 0; bottom: 0; border: 2px solid currentColor; box-shadow: 0 0 8px currentColor; transition: 0.2s; }
+    .checkmark { position: absolute; top: 0; left: 0; right: 0; bottom: 0; border: 1px solid currentColor; box-shadow: 0 0 8px currentColor; transition: 0.2s; }
     .cyber-checkbox input:checked ~ .checkmark { background-color: currentColor; box-shadow: 0 0 15px currentColor; }
     .cyber-checkbox input:checked ~ .checkmark:after {
-      content: ""; position: absolute; left: 6px; top: 2px;
-      width: 5px; height: 10px; border: solid #000; border-width: 0 3px 3px 0; transform: rotate(45deg);
+      content: ""; position: absolute; left: 4px; top: 1px;
+      width: 4px; height: 8px; border: solid #000; border-width: 0 2px 2px 0; transform: rotate(45deg);
     }
 
-    .range-container { display: flex; align-items: center; gap: 10px; }
+    .range-container { display: flex; align-items: center; gap: 8px; }
     input[type=range] { -webkit-appearance: none; flex: 1; background: transparent; position: relative; z-index: 10; cursor: pointer; }
     input[type=range]:focus { outline: none; }
     input[type=range]::-webkit-slider-runnable-track { width: 100%; height: 2px; background: currentColor; box-shadow: 0 0 5px currentColor; cursor: pointer; }
     input[type=range]::-webkit-slider-thumb { 
-      height: 16px; width: 16px; background: #ffffff; border: 3px solid currentColor; border-radius: 50%;
-      box-shadow: 0 0 8px currentColor; cursor: pointer; -webkit-appearance: none; margin-top: -7px; 
+      height: 12px; width: 12px; background: #ffffff; border: 2px solid currentColor; border-radius: 50%;
+      box-shadow: 0 0 8px currentColor; cursor: pointer; -webkit-appearance: none; margin-top: -5px; 
     }
-    .slider-val { font-size: 13px; min-width: 55px; text-align: right; text-shadow: 0 0 5px currentColor; }
-    #status-msg { font-size: 11px; font-weight: bold; color: #ff0; text-shadow: 0 0 5px #ff0; text-transform: uppercase; }
-    .color-dot { width: 10px; height: 10px; display: inline-block; box-shadow: 0 0 8px currentColor; border: 1px solid #fff; }
+    .slider-val { font-size: 11px; min-width: 45px; text-align: right; text-shadow: 0 0 5px currentColor; }
+    #status-msg { font-size: 10px; font-weight: bold; color: #ff0; text-shadow: 0 0 5px #ff0; text-transform: uppercase; margin-top: -4px;}
+    .color-dot { width: 8px; height: 8px; display: inline-block; box-shadow: 0 0 8px currentColor; border: 1px solid #fff; }
 
     /* Leaflet ツールチップ (HOVER用) */
     .leaflet-tooltip { 
@@ -623,7 +623,7 @@
     });
   }
 
-  // TRACKING DEVICE は CLICK (bindPopup) に設定
+  // TRACKING DEVICE は CLICK (bindPopup) 
   // 閾値に応じた色分け と形状変更、24時間判定を追加
   function updateDeviceDisplay() {
     deviceLayerGroup.clearLayers();
