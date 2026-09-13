@@ -10,12 +10,13 @@
   
   <style>
     :root {
-      /* 通常モード用フラットカラー（レトロフューチャー指定前） */
+      /* 通常モード用フラットカラー */
       --color-route: #16a085;
       --color-step: #d63031;
       --color-wheelie: #e17055;
       --color-steep: #6c5ce7;
       --color-device: #0984e3;
+      --color-alert: #e84393;
       
       /* CYBER_MODE用ネオンカラー */
       --neon-cyan: #0ff;
@@ -23,6 +24,7 @@
       --neon-yellow: #ff0;
       --neon-orange: #f90;
       --neon-green: #3f3;
+      --neon-pink: #ff2a85;
       
       --bg-dark: rgba(5, 5, 10, 0.9);
     }
@@ -35,7 +37,6 @@
       background-color: #f0f0f0; 
     }
 
-    /* CYBER_MODE時はCSS変数をネオンカラーに上書き */
     body.cyber-mode {
       background-color: #000;
       --color-route: var(--neon-cyan);
@@ -43,18 +44,15 @@
       --color-wheelie: var(--neon-orange);
       --color-steep: var(--neon-yellow);
       --color-device: var(--neon-green);
+      --color-alert: var(--neon-pink);
     }
 
-    /* マップ領域 */
     #map { 
       position: absolute; top: 0; left: 0; width: 100vw; height: 100vh; z-index: 1; 
       background: #ddd; 
     }
     body.cyber-mode #map { background: #000; }
 
-    /* =========================================
-       サイバーエフェクト専用レイヤー
-       ========================================= */
     #cyber-effects {
       display: none; 
       position: absolute; top: 0; left: 0; width: 100vw; height: 100vh;
@@ -72,18 +70,10 @@
       background-size: 100% 4px;
     }
 
-    /* CYBER_MODE時のマップ色反転 */
-    .cyber-tile {
-      filter: invert(100%) sepia(20%) hue-rotate(180deg) brightness(70%) contrast(150%);
-    }
-    /* CYBER_MODE時のみ、ルート線だけを発光させる（マーカーにはかけない） */
-    body.cyber-mode .cyber-route-line {
-      filter: drop-shadow(0 0 8px var(--neon-cyan));
-    }
+    .cyber-tile { filter: invert(100%) sepia(20%) hue-rotate(180deg) brightness(70%) contrast(150%); }
+    body.cyber-mode .cyber-route-line { filter: drop-shadow(0 0 8px var(--neon-cyan)); }
 
-    /* =========================================
-       UIパネル共通スタイル
-       ========================================= */
+    /* UIパネル */
     .cyber-panel {
       background: var(--bg-dark);
       border: 2px solid var(--neon-cyan);
@@ -100,10 +90,7 @@
       transition: background 0.2s;
     }
     .panel-header:hover { background: rgba(0, 255, 255, 0.15); }
-    .panel-header h2 { 
-      margin: 0; font-size: 14px; font-weight: 900; letter-spacing: 0.1em; 
-      text-shadow: 0 0 8px var(--neon-cyan);
-    }
+    .panel-header h2 { margin: 0; font-size: 14px; font-weight: 900; letter-spacing: 0.1em; text-shadow: 0 0 8px var(--neon-cyan); }
     
     .cyber-btn {
       background: rgba(0, 0, 0, 0.8); color: var(--neon-cyan);
@@ -117,10 +104,7 @@
 
     .collapsed { display: none !important; }
 
-    /* コントロールパネル (左上) */
-    #control-panel { 
-      position: absolute; top: 20px; left: 20px; width: 320px; 
-    }
+    #control-panel { position: absolute; top: 20px; left: 20px; width: 320px; }
     #control-content {
       display: flex; flex-direction: column; gap: 20px;
       max-height: calc(100vh - 120px); overflow-y: auto; padding-right: 5px;
@@ -128,19 +112,10 @@
     #control-content::-webkit-scrollbar { width: 4px; }
     #control-content::-webkit-scrollbar-thumb { background: var(--neon-cyan); box-shadow: 0 0 5px var(--neon-cyan); }
 
-    /* 凡例パネル (右下) */
-    #legend-panel {
-      position: absolute; bottom: 25px; right: 20px; width: 220px;
-    }
-    #legend-content {
-      font-size: 12px; color: var(--neon-cyan); line-height: 22px; font-family: 'Orbitron', sans-serif;
-    }
-    #legend-content i { 
-      width: 12px; height: 12px; float: left; margin-top: 5px; margin-right: 10px; 
-      box-shadow: 0 0 8px currentColor; 
-    }
+    #legend-panel { position: absolute; bottom: 25px; right: 20px; width: 220px; }
+    #legend-content { font-size: 12px; color: var(--neon-cyan); line-height: 22px; font-family: 'Orbitron', sans-serif; }
+    #legend-content i { width: 12px; height: 12px; float: left; margin-top: 5px; margin-right: 10px; box-shadow: 0 0 8px currentColor; }
 
-    /* UIパーツ類 */
     .layer-btn-group { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
     .layer-btn {
       background: rgba(0, 0, 0, 0.8); color: var(--neon-cyan); border: 1px solid var(--neon-cyan); padding: 8px 4px;
@@ -150,10 +125,7 @@
     .layer-btn.active { background: var(--neon-cyan); color: #000; box-shadow: 0 0 10px var(--neon-cyan); font-weight: bold; }
 
     .panel-section { display: flex; flex-direction: column; gap: 12px; }
-    .panel-section h3 { 
-      margin: 0; font-size: 13px; font-weight: 700; letter-spacing: 0.1em; 
-      border-bottom: 1px dashed var(--neon-cyan); padding-bottom: 4px; text-shadow: 0 0 5px var(--neon-cyan); opacity: 0.8;
-    }
+    .panel-section h3 { margin: 0; font-size: 13px; font-weight: 700; letter-spacing: 0.1em; border-bottom: 1px dashed var(--neon-cyan); padding-bottom: 4px; text-shadow: 0 0 5px var(--neon-cyan); opacity: 0.8; }
     .control-group { display: flex; flex-direction: column; gap: 6px; }
     .control-header { display: flex; justify-content: space-between; align-items: center; }
     .control-label { font-size: 13px; display: flex; align-items: center; gap: 8px; text-shadow: 0 0 5px currentColor; }
@@ -168,10 +140,7 @@
 
     .cyber-checkbox { position: relative; display: inline-block; width: 22px; height: 22px; cursor: pointer; }
     .cyber-checkbox input { opacity: 0; width: 0; height: 0; }
-    .checkmark {
-      position: absolute; top: 0; left: 0; right: 0; bottom: 0;
-      border: 2px solid currentColor; box-shadow: 0 0 8px currentColor; transition: 0.2s;
-    }
+    .checkmark { position: absolute; top: 0; left: 0; right: 0; bottom: 0; border: 2px solid currentColor; box-shadow: 0 0 8px currentColor; transition: 0.2s; }
     .cyber-checkbox input:checked ~ .checkmark { background-color: currentColor; box-shadow: 0 0 15px currentColor; }
     .cyber-checkbox input:checked ~ .checkmark:after {
       content: ""; position: absolute; left: 6px; top: 2px;
@@ -179,13 +148,9 @@
     }
 
     .range-container { display: flex; align-items: center; gap: 10px; }
-    input[type=range] { 
-      -webkit-appearance: none; flex: 1; background: transparent; 
-      position: relative; z-index: 10; cursor: pointer; 
-    }
+    input[type=range] { -webkit-appearance: none; flex: 1; background: transparent; position: relative; z-index: 10; cursor: pointer; }
     input[type=range]:focus { outline: none; }
     input[type=range]::-webkit-slider-runnable-track { width: 100%; height: 2px; background: currentColor; box-shadow: 0 0 5px currentColor; cursor: pointer; }
-    
     input[type=range]::-webkit-slider-thumb { 
       height: 16px; width: 16px; background: #ffffff; border: 3px solid currentColor; border-radius: 50%;
       box-shadow: 0 0 8px currentColor; cursor: pointer; -webkit-appearance: none; margin-top: -7px; 
@@ -200,25 +165,6 @@
       box-shadow: 0 0 10px var(--neon-cyan); font-family: 'Orbitron', sans-serif; text-shadow: 0 0 5px var(--neon-cyan); border-radius: 0;
     }
     .leaflet-tooltip-top:before { border-top-color: var(--neon-cyan); }
-
-    /* Leaflet ポップアップ (アノテーション表示用) */
-    .cyber-popup .leaflet-popup-content-wrapper {
-      background: var(--bg-dark);
-      border: 1px solid var(--neon-cyan);
-      box-shadow: 0 0 15px var(--neon-cyan);
-      border-radius: 4px;
-      color: var(--neon-cyan);
-      font-family: 'Orbitron', -apple-system, sans-serif;
-    }
-    .cyber-popup .leaflet-popup-tip {
-      background: var(--bg-dark);
-      border: 1px solid var(--neon-cyan);
-      box-shadow: 0 0 10px var(--neon-cyan);
-    }
-    .cyber-popup .leaflet-popup-close-button {
-      color: var(--neon-cyan) !important;
-      text-shadow: 0 0 5px var(--neon-cyan);
-    }
   </style>
 </head>
 <body>
@@ -297,6 +243,16 @@
     </div>
     
     <div class="panel-section">
+      <h3>INDEPENDENT_ALERTS</h3>
+      <div class="control-group" style="color: var(--color-alert);">
+        <div class="control-header">
+          <label class="control-label"><span class="color-dot" style="background: currentColor;"></span>USER_REPORT</label>
+          <label class="cyber-checkbox"><input type="checkbox" id="chk-alert" checked><span class="checkmark"></span></label>
+        </div>
+      </div>
+    </div>
+
+    <div class="panel-section">
       <h3>TRACKING_DEVICE</h3>
       <div class="control-group" style="color: var(--color-device);">
         <div class="control-header">
@@ -319,6 +275,7 @@
     <i style="background: var(--color-step); color: var(--color-step);"></i>STEP_SHOCK<br>
     <i style="background: var(--color-wheelie); color: var(--color-wheelie);"></i>WHEELIE_ACT<br>
     <i style="background: var(--color-steep); color: var(--color-steep);"></i>STEEP_SLOPE<br>
+    <i style="background: var(--color-alert); color: var(--color-alert);"></i>USER_REPORT<br>
     <i style="background: var(--color-device); color: var(--color-device);"></i>LIVE_DEVICE<br>
   </div>
 </div>
@@ -370,14 +327,17 @@
 
   const dataLayerGroup = L.layerGroup().addTo(map);
   const barrierLayerGroup = L.layerGroup().addTo(map);
+  const alertLayerGroup = L.layerGroup().addTo(map); // 単独アラート用レイヤー
   const deviceLayerGroup = L.layerGroup().addTo(map);
 
   let currentBarriers = [];
   let currentDevices = [];
+  let currentStandaloneAlerts = []; // 単独アラート用データ保持
 
   function redrawAllMapElements() {
     dataLayerGroup.clearLayers();
     barrierLayerGroup.clearLayers();
+    alertLayerGroup.clearLayers();
     deviceLayerGroup.clearLayers();
 
     const isCyber = document.body.classList.contains('cyber-mode');
@@ -394,8 +354,9 @@
       renderStartEnd(currentTripLatLngs[0], currentTripLatLngs[currentTripLatLngs.length - 1]);
     }
     
-    // 2. マーカー類
+    // 2. マーカー類を描画
     updateBarrierDisplay();
+    updateAlertDisplay(); // 単独アラート描画
     updateDeviceDisplay();
   }
 
@@ -432,12 +393,14 @@
   const steepSlider = document.getElementById('steep-slider');
   const steepValText = document.getElementById('steep-val-text');
 
+  const chkAlert = document.getElementById('chk-alert'); // 独立アラートのトグル
   const chkDevice = document.getElementById('chk-device');
 
   modeSelect.addEventListener('change', loadData);
   dataTypeSelect.addEventListener('change', loadData);
 
   [chkStep, chkWheelie, chkSteep].forEach(chk => { chk.addEventListener('change', updateBarrierDisplay); });
+  chkAlert.addEventListener('change', updateAlertDisplay);
   chkDevice.addEventListener('change', updateDeviceDisplay);
 
   stepSlider.addEventListener('input', function() { stepValText.innerText = parseFloat(this.value).toFixed(1); updateBarrierDisplay(); });
@@ -471,6 +434,22 @@
     } catch (err) { console.error(err); }
   }
 
+  // 単独アラートデータの取得（初期化時に実行し、ルート切り替えには影響されない）
+  async function fetchStandaloneAlerts() {
+    if (!supabaseClient) return;
+    try {
+      const { data, error } = await supabaseClient
+        .from('standalone_alerts')
+        .select('*')
+        .order('created_at', { ascending: false });
+        
+      if (!error && data) {
+        currentStandaloneAlerts = data;
+        updateAlertDisplay();
+      }
+    } catch (err) { console.error('Alert Fetch Error:', err); }
+  }
+
   async function fetchDeviceStatus() {
     if (!supabaseClient) return;
     try {
@@ -491,7 +470,6 @@
     try {
       const targetCol = (dataTypeSelect.value === 'raw') ? 'raw_geom' : 'cleansed_geom';
       
-      // tsファイルのロジックを取り込み、annotationsテーブルと結合してデータ取得
       const [barriersRes, tripRes] = await Promise.all([
         supabaseClient.from('barriers').select(`
           barrier_type, intensity, geom,
@@ -548,21 +526,14 @@
           let tooltipHtml = `<div>${baseLabel}</div>`;
 
           if (hasAnnotation) {
-            // アノテーションあり: ひし形マーカー
             const size = radius * 2.5; 
             const htmlStr = isCyber
               ? `<div style="width:${size}px; height:${size}px; background:#000; border:2px solid ${color}; box-shadow:0 0 10px ${color}; transform: rotate(45deg);"></div>`
               : `<div style="width:${size}px; height:${size}px; background:${color}; border:2px solid #fff; box-shadow:0 0 5px rgba(0,0,0,0.5); transform: rotate(45deg);"></div>`;
             
-            const icon = L.divIcon({
-              className: '',
-              html: htmlStr,
-              iconSize: [size, size],
-              iconAnchor: [size/2, size/2]
-            });
+            const icon = L.divIcon({ className: '', html: htmlStr, iconSize: [size, size], iconAnchor: [size/2, size/2] });
             marker = L.marker(coords, { icon: icon });
 
-            // ツールチップにアノテーションの内容を追加
             tooltipHtml = `<div style="max-width: 150px; text-align: center;">`;
             tooltipHtml += `<div style="font-weight: bold; border-bottom: 1px dashed ${color}; margin-bottom: 5px; padding-bottom: 3px;">${baseLabel}</div>`;
             
@@ -574,20 +545,53 @@
             });
             tooltipHtml += `</div>`;
           } else {
-            // アノテーションなし: 円形マーカー
             const markerOpts = isCyber
               ? { radius: radius, fillColor: '#000', color: color, weight: 3, fillOpacity: 0.8 }
               : { radius: radius, fillColor: color, color: '#ffffff', weight: 1.5, fillOpacity: 0.85 };
             marker = L.circleMarker(coords, markerOpts);
           }
 
-          // ツールチップをバインド (ポップアップは廃止)
           marker.bindTooltip(tooltipHtml, { direction: 'top' }).addTo(barrierLayerGroup);
         }
       }
     });
-  } 
-  
+  }
+
+  // 単独アラートの描画
+  function updateAlertDisplay() {
+    alertLayerGroup.clearLayers();
+    if (!chkAlert.checked) return;
+
+    const isCyber = document.body.classList.contains('cyber-mode');
+    // JS側で色を明示的に指定
+    const colorAlert = isCyber ? '#ff2a85' : '#e84393';
+
+    currentStandaloneAlerts.forEach(alert => {
+      if (alert.lat == null || alert.lon == null) return;
+      
+      const size = 18; // バリアのアノテーション(14~17px)より少し大きめのひし形
+      const htmlStr = isCyber
+        ? `<div style="width:${size}px; height:${size}px; background:#000; border:2px solid ${colorAlert}; box-shadow:0 0 10px ${colorAlert}; transform: rotate(45deg);"></div>`
+        : `<div style="width:${size}px; height:${size}px; background:${colorAlert}; border:2px solid #fff; box-shadow:0 0 5px rgba(0,0,0,0.5); transform: rotate(45deg);"></div>`;
+      
+      const icon = L.divIcon({ className: '', html: htmlStr, iconSize: [size, size], iconAnchor: [size/2, size/2] });
+      const marker = L.marker([alert.lat, alert.lon], { icon: icon });
+
+      let tooltipHtml = `<div style="max-width: 150px; text-align: center;">`;
+      tooltipHtml += `<div style="font-weight: bold; border-bottom: 1px dashed ${colorAlert}; margin-bottom: 5px; padding-bottom: 3px; color: ${colorAlert};">USER REPORT</div>`;
+      
+      if (alert.image_url) {
+        tooltipHtml += `<img src="${alert.image_url}" alt="Alert" style="width: 100%; height: auto; border-radius: 4px; margin-bottom: 4px;" />`;
+      }
+      
+      tooltipHtml += `<div style="font-size: 11px; line-height: 1.2;">${alert.comment || 'NO COMMENT'}</div>`;
+      tooltipHtml += `<div style="font-size: 9px; margin-top: 4px; opacity: 0.7;">${new Date(alert.created_at).toLocaleString('ja-JP')}</div>`;
+      tooltipHtml += `</div>`;
+
+      marker.bindTooltip(tooltipHtml, { direction: 'top' }).addTo(alertLayerGroup);
+    });
+  }
+
   function updateDeviceDisplay() {
     deviceLayerGroup.clearLayers();
     if (!chkDevice.checked) return;
@@ -622,8 +626,10 @@
     L.marker(endPt, { icon: createIcon('G', colorEnd) }).addTo(dataLayerGroup);
   }
 
+  // 初期データ読み込み
   fetchTripList();
   fetchDeviceStatus();
+  fetchStandaloneAlerts(); 
 </script>
 </body>
 </html>
