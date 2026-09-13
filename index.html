@@ -524,7 +524,7 @@
         if (coords) {
           const hasAnnotation = b.annotations && b.annotations.length > 0;
           let marker;
-          let tooltipHtml = `<div>${baseLabel}</div>`;
+          let tooltipHtml = '';
 
           if (hasAnnotation) {
             const size = radius * 2.5; 
@@ -542,7 +542,6 @@
               if (ann.image_url) {
                 tooltipHtml += `<img src="${ann.image_url}" alt="Alert" style="width: 100%; height: auto; border-radius: 4px; margin-bottom: 4px;" />`;
               }
-              // 幅・高さを制限してスクロール可能に調整
               tooltipHtml += `<div style="font-size: 11px; line-height: 1.4; text-align: left; width: 140px; max-height: 70px; overflow-y: auto; padding-right: 4px; border: 1px solid rgba(0,255,255,0.2); background: rgba(0,0,0,0.5);">${ann.comment || 'NO COMMENT'}</div>`;
             });
             tooltipHtml += `</div>`;
@@ -552,8 +551,8 @@
               : { radius: radius, fillColor: color, color: '#ffffff', weight: 1.5, fillOpacity: 0.85 };
             marker = L.circleMarker(coords, markerOpts);
 
-            // アノテーションがない通常のバリアマーカーにもラベル用の安全な幅制限・スタイルを適用
-            tooltipHtml = `<div style="max-width: 180px; text-align: center; font-size: 11px;">${baseLabel}</div>`;
+            // アノテーションのない通常バリアでも幅が崩れないよう幅とインラインブロックを指定
+            tooltipHtml = `<div style="width: 120px; text-align: center; font-size: 11px; word-break: break-word;">${baseLabel}</div>`;
           }
 
           marker.bindTooltip(tooltipHtml, { direction: 'top' }).addTo(barrierLayerGroup);
