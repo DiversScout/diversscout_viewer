@@ -163,6 +163,8 @@
     .leaflet-tooltip { 
       background: rgba(0, 0, 0, 0.9); border: 1px solid var(--neon-cyan); color: var(--neon-cyan); 
       box-shadow: 0 0 10px var(--neon-cyan); font-family: 'Orbitron', sans-serif; text-shadow: 0 0 5px var(--neon-cyan); border-radius: 0;
+      white-space: normal; /* 追加: 自動折り返しを許可 */
+      word-break: break-word; /* 追加: 長い文字列での折り返し */
     }
     .leaflet-tooltip-top:before { border-top-color: var(--neon-cyan); }
   </style>
@@ -534,14 +536,15 @@
             const icon = L.divIcon({ className: '', html: htmlStr, iconSize: [size, size], iconAnchor: [size/2, size/2] });
             marker = L.marker(coords, { icon: icon });
 
-            tooltipHtml = `<div style="max-width: 150px; text-align: center;">`;
+            // CSS修正に合わせて max-width 拡大、左揃え適用
+            tooltipHtml = `<div style="max-width: 180px; text-align: center;">`;
             tooltipHtml += `<div style="font-weight: bold; border-bottom: 1px dashed ${color}; margin-bottom: 5px; padding-bottom: 3px;">${baseLabel}</div>`;
             
             b.annotations.forEach(ann => {
               if (ann.image_url) {
                 tooltipHtml += `<img src="${ann.image_url}" alt="Alert" style="width: 100%; height: auto; border-radius: 4px; margin-bottom: 4px;" />`;
               }
-              tooltipHtml += `<div style="font-size: 11px; line-height: 1.2;">${ann.comment || 'NO COMMENT'}</div>`;
+              tooltipHtml += `<div style="font-size: 11px; line-height: 1.4; text-align: left;">${ann.comment || 'NO COMMENT'}</div>`;
             });
             tooltipHtml += `</div>`;
           } else {
@@ -563,13 +566,12 @@
     if (!chkAlert.checked) return;
 
     const isCyber = document.body.classList.contains('cyber-mode');
-    // JS側で色を明示的に指定
     const colorAlert = isCyber ? '#ff2a85' : '#e84393';
 
     currentStandaloneAlerts.forEach(alert => {
       if (alert.lat == null || alert.lon == null) return;
       
-      const size = 18; // バリアのアノテーション(14~17px)より少し大きめのひし形
+      const size = 18;
       const htmlStr = isCyber
         ? `<div style="width:${size}px; height:${size}px; background:#000; border:2px solid ${colorAlert}; box-shadow:0 0 10px ${colorAlert}; transform: rotate(45deg);"></div>`
         : `<div style="width:${size}px; height:${size}px; background:${colorAlert}; border:2px solid #fff; box-shadow:0 0 5px rgba(0,0,0,0.5); transform: rotate(45deg);"></div>`;
@@ -577,14 +579,15 @@
       const icon = L.divIcon({ className: '', html: htmlStr, iconSize: [size, size], iconAnchor: [size/2, size/2] });
       const marker = L.marker([alert.lat, alert.lon], { icon: icon });
 
-      let tooltipHtml = `<div style="max-width: 150px; text-align: center;">`;
+      // CSS修正に合わせて max-width 拡大、左揃え適用
+      let tooltipHtml = `<div style="max-width: 180px; text-align: center;">`;
       tooltipHtml += `<div style="font-weight: bold; border-bottom: 1px dashed ${colorAlert}; margin-bottom: 5px; padding-bottom: 3px; color: ${colorAlert};">USER REPORT</div>`;
       
       if (alert.image_url) {
         tooltipHtml += `<img src="${alert.image_url}" alt="Alert" style="width: 100%; height: auto; border-radius: 4px; margin-bottom: 4px;" />`;
       }
       
-      tooltipHtml += `<div style="font-size: 11px; line-height: 1.2;">${alert.comment || 'NO COMMENT'}</div>`;
+      tooltipHtml += `<div style="font-size: 11px; line-height: 1.4; text-align: left; margin-bottom: 4px;">${alert.comment || 'NO COMMENT'}</div>`;
       tooltipHtml += `<div style="font-size: 9px; margin-top: 4px; opacity: 0.7;">${new Date(alert.created_at).toLocaleString('ja-JP')}</div>`;
       tooltipHtml += `</div>`;
 
