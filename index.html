@@ -522,7 +522,7 @@
     } catch (err) { statusMsg.innerText = 'ERROR'; }
   }
 
-  function updateBarrierDisplay() {
+function updateBarrierDisplay() {
     barrierLayerGroup.clearLayers();
     const isCyber = document.body.classList.contains('cyber-mode');
     
@@ -543,16 +543,34 @@
       if (draw) {
         const coords = parsePointGeom(b.geom);
         if (coords) {
-          const markerOpts = isCyber
-            ? { radius: radius, fillColor: '#000', color: color, weight: 3, fillOpacity: 0.8 }
-            : { radius: radius, fillColor: color, color: '#ffffff', weight: 1.5, fillOpacity: 0.85 };
-          
-          const marker = L.circleMarker(coords, markerOpts)
-            .bindTooltip(label, { direction: 'top' })
-            .addTo(barrierLayerGroup);
+          const hasAnnotation = b.annotations && b.annotations.length > 0;
+          let marker;
 
-          // アノテーション情報が存在する場合、ポップアップを構築してバインドする
-          if (b.annotations && b.annotations.length > 0) {
+          if (hasAnnotation) {
+            // アノテーションあり: LeafletのdivIconを使用して「ひし形」を描画
+            const size = radius * 2.5; 
+            const htmlStr = isCyber
+              ? `<div style="width:${size}px; height:${size}px; background:#000; border:2px solid ${color}; box-shadow:0 0 10px ${color}; transform: rotate(45deg);"></div>`
+              : `<div style="width:${size}px; height:${size}px; background:${color}; border:2px solid #fff; box-shadow:0 0 5px rgba(0,0,0,0.5); transform: rotate(45deg);"></div>`;
+            
+            const icon = L.divIcon({
+              className: '', // デフォルトの白枠などを消す
+              html: htmlStr,
+              iconSize: [size, size],
+              iconAnchor: [size/2, size/2]
+            });
+            marker = L.marker(coords, { icon: icon });
+          } else {
+            // アノテーションなし: 従来の円形マーカー
+            const markerOpts = isCyber
+              ? { radius: radius, fillColor: '#000', color: color, weight: 3, fillOpacity: 0.8 }
+              : { radius: radius, fillColor: color, color: '#ffffff', weight: 1.5, fillOpacity: 0.85 };
+            marker = L.circleMarker(coords, markerOpts);
+          }
+
+          marker.bindTooltip(label, { direction: 'top' }).addTo(barrierLayerGroup);
+
+          if (hasAnnotation) {
             let popupHtml = '<div style="max-width: 200px;">';
             popupHtml += '<h4 style="margin: 0 0 10px 0; border-bottom: 1px solid var(--neon-cyan); padding-bottom: 5px;">ALERT DETAIL</h4>';
             
@@ -572,7 +590,7 @@
       }
     });
   }
-
+  
   function updateDeviceDisplay() {
     deviceLayerGroup.clearLayers();
     if (!chkDevice.checked) return;
