@@ -551,7 +551,6 @@
               : { radius: radius, fillColor: color, color: '#ffffff', weight: 1.5, fillOpacity: 0.85 };
             marker = L.circleMarker(coords, markerOpts);
 
-            // アノテーションのない通常バリアでも幅が崩れないよう幅とインラインブロックを指定
             tooltipHtml = `<div style="width: 120px; text-align: center; font-size: 11px; word-break: break-word;">${baseLabel}</div>`;
           }
 
@@ -595,6 +594,7 @@
     });
   }
 
+  // トラッキングデバイスの描画
   function updateDeviceDisplay() {
     deviceLayerGroup.clearLayers();
     if (!chkDevice.checked) return;
@@ -604,7 +604,16 @@
 
     currentDevices.forEach(d => {
       if (d.lat == null || d.lon == null) return;
-      const tooltipHtml = `<div style="font-size: 11px; line-height: 1.6;"><strong style="color: ${colorDevice}; font-size: 13px;">${d.device_id}</strong><br>NAME: ${d.device_name || 'UNKNOWN'}<br>STAT: ${d.status}<br>TEMP: ${d.temperature} C<br>FIXD: ${d.is_fixed ? 'YES' : 'NO'}<br>TIME: ${new Date(d.jst).toLocaleTimeString()}</div>`;
+      
+      // 幅・高さを制限し、はみ出た部分はスクロールするように調整
+      const tooltipHtml = `<div style="width: 150px; font-size: 11px; line-height: 1.5; text-align: left; max-height: 80px; overflow-y: auto; padding-right: 4px;">` +
+        `<strong style="color: ${colorDevice}; font-size: 12px; display: block; border-bottom: 1px dashed ${colorDevice}; margin-bottom: 3px; padding-bottom: 2px;">${d.device_id}</strong>` +
+        `NAME: ${d.device_name || 'UNKNOWN'}<br>` +
+        `STAT: ${d.status}<br>` +
+        `TEMP: ${d.temperature} C<br>` +
+        `FIXD: ${d.is_fixed ? 'YES' : 'NO'}<br>` +
+        `TIME: ${new Date(d.jst).toLocaleTimeString()}` +
+        `</div>`;
       
       const markerOpts = isCyber
         ? { radius: 7, fillColor: '#000', color: colorDevice, weight: 3, fillOpacity: 0.9 }
