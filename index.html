@@ -89,7 +89,7 @@
       border: 2px solid var(--neon-cyan);
       box-shadow: 0 0 15px var(--neon-cyan), inset 0 0 15px rgba(0, 255, 255, 0.2);
       padding: 15px;
-      z-index: 10000; /* マップやエフェクトより確実に前面に出す */
+      z-index: 10000;
     }
 
     .panel-header {
@@ -128,7 +128,7 @@
     #control-content::-webkit-scrollbar { width: 4px; }
     #control-content::-webkit-scrollbar-thumb { background: var(--neon-cyan); box-shadow: 0 0 5px var(--neon-cyan); }
 
-    /* 凡例パネル (右下) - 完全に独立したDOMとして配置 */
+    /* 凡例パネル (右下) */
     #legend-panel {
       position: absolute; bottom: 25px; right: 20px; width: 220px;
     }
@@ -186,7 +186,6 @@
     input[type=range]:focus { outline: none; }
     input[type=range]::-webkit-slider-runnable-track { width: 100%; height: 2px; background: currentColor; box-shadow: 0 0 5px currentColor; cursor: pointer; }
     
-    /* スライダーつまみ (白丸) */
     input[type=range]::-webkit-slider-thumb { 
       height: 16px; width: 16px; background: #ffffff; border: 3px solid currentColor; border-radius: 50%;
       box-shadow: 0 0 8px currentColor; cursor: pointer; -webkit-appearance: none; margin-top: -7px; 
@@ -201,6 +200,25 @@
       box-shadow: 0 0 10px var(--neon-cyan); font-family: 'Orbitron', sans-serif; text-shadow: 0 0 5px var(--neon-cyan); border-radius: 0;
     }
     .leaflet-tooltip-top:before { border-top-color: var(--neon-cyan); }
+
+    /* Leaflet ポップアップ (アノテーション表示用) */
+    .cyber-popup .leaflet-popup-content-wrapper {
+      background: var(--bg-dark);
+      border: 1px solid var(--neon-cyan);
+      box-shadow: 0 0 15px var(--neon-cyan);
+      border-radius: 4px;
+      color: var(--neon-cyan);
+      font-family: 'Orbitron', -apple-system, sans-serif;
+    }
+    .cyber-popup .leaflet-popup-tip {
+      background: var(--bg-dark);
+      border: 1px solid var(--neon-cyan);
+      box-shadow: 0 0 10px var(--neon-cyan);
+    }
+    .cyber-popup .leaflet-popup-close-button {
+      color: var(--neon-cyan) !important;
+      text-shadow: 0 0 5px var(--neon-cyan);
+    }
   </style>
 </head>
 <body>
@@ -208,7 +226,7 @@
 <div id="map"></div>
 <div id="cyber-effects"></div>
 
-<!-- コントロールパネル (左上) -->
+<!-- コントロールパネル -->
 <div id="control-panel" class="cyber-panel">
   <div class="panel-header" onclick="toggleSection('control-content', 'btn-control')">
     <h2>SYS_CONTROL</h2>
@@ -290,7 +308,7 @@
   </div>
 </div>
 
-<!-- 凡例パネル (右下) 独立化 -->
+<!-- 凡例パネル -->
 <div id="legend-panel" class="cyber-panel">
   <div class="panel-header" onclick="toggleSection('legend-content', 'btn-legend')" style="margin-bottom:0; padding-bottom: 5px;">
     <h2>SYS_LEGEND</h2>
@@ -357,7 +375,6 @@
   let currentBarriers = [];
   let currentDevices = [];
 
-  // 描画順を制御し、必ずルート→マーカーの順に再描画する
   function redrawAllMapElements() {
     dataLayerGroup.clearLayers();
     barrierLayerGroup.clearLayers();
@@ -365,19 +382,19 @@
 
     const isCyber = document.body.classList.contains('cyber-mode');
 
-    // 1. ルート線を先に描画（最背面）
+    // 1. ルート線
     if (currentTripLatLngs && currentTripLatLngs.length > 0) {
       const routeColor = isCyber ? 'var(--neon-cyan)' : 'var(--color-route)';
       const routeWeight = isCyber ? 5 : 6;
       L.polyline(currentTripLatLngs, { 
         color: routeColor, weight: routeWeight, opacity: 0.9, 
-        className: 'cyber-route-line' // このクラスにのみ発光フィルタを適用
+        className: 'cyber-route-line'
       }).addTo(dataLayerGroup);
       
       renderStartEnd(currentTripLatLngs[0], currentTripLatLngs[currentTripLatLngs.length - 1]);
     }
     
-    // 2. マーカー類を後に描画（前面）
+    // 2. マーカー類
     updateBarrierDisplay();
     updateDeviceDisplay();
   }
@@ -396,7 +413,6 @@
     document.querySelectorAll('.layer-btn').forEach(btn => btn.classList.remove('active'));
     btnElem.classList.add('active');
 
-    // モード切替時に描画順序を保ったまま再描画
     redrawAllMapElements();
   };
   
@@ -474,8 +490,13 @@
     
     try {
       const targetCol = (dataTypeSelect.value === 'raw') ? 'raw_geom' : 'cleansed_geom';
+      
+      // tsファイルのロジックを取り込み、annotationsテーブルと結合してデータ取得
       const [barriersRes, tripRes] = await Promise.all([
-        supabaseClient.from('barriers').select('barrier_type, intensity, geom').eq('trip_id', tripId).limit(10000),
+        supabaseClient.from('barriers').select(`
+          barrier_type, intensity, geom,
+          annotations ( comment, image_url )
+        `).eq('trip_id', tripId).limit(10000),
         supabaseClient.from('trips').select(targetCol).eq('trip_id', tripId).single()
       ]);
 
@@ -505,7 +526,6 @@
     barrierLayerGroup.clearLayers();
     const isCyber = document.body.classList.contains('cyber-mode');
     
-    // JS側でモードごとに色を確実に指定する
     const colorStep = isCyber ? '#f0f' : '#d63031';
     const colorWheelie = isCyber ? '#f90' : '#e17055';
     const colorSteep = isCyber ? '#ff0' : '#6c5ce7';
@@ -526,7 +546,28 @@
           const markerOpts = isCyber
             ? { radius: radius, fillColor: '#000', color: color, weight: 3, fillOpacity: 0.8 }
             : { radius: radius, fillColor: color, color: '#ffffff', weight: 1.5, fillOpacity: 0.85 };
-          L.circleMarker(coords, markerOpts).bindTooltip(label, { direction: 'top' }).addTo(barrierLayerGroup);
+          
+          const marker = L.circleMarker(coords, markerOpts)
+            .bindTooltip(label, { direction: 'top' })
+            .addTo(barrierLayerGroup);
+
+          // アノテーション情報が存在する場合、ポップアップを構築してバインドする
+          if (b.annotations && b.annotations.length > 0) {
+            let popupHtml = '<div style="max-width: 200px;">';
+            popupHtml += '<h4 style="margin: 0 0 10px 0; border-bottom: 1px solid var(--neon-cyan); padding-bottom: 5px;">ALERT DETAIL</h4>';
+            
+            b.annotations.forEach(ann => {
+              popupHtml += '<div style="margin-bottom: 10px;">';
+              if (ann.image_url) {
+                popupHtml += `<img src="${ann.image_url}" alt="Alert" style="width: 100%; height: auto; border-radius: 4px; margin-bottom: 5px;" />`;
+              }
+              popupHtml += `<p style="margin: 0; font-size: 13px;">${ann.comment || 'NO COMMENT'}</p>`;
+              popupHtml += '</div>';
+            });
+            popupHtml += '</div>';
+
+            marker.bindPopup(popupHtml, { className: 'cyber-popup' });
+          }
         }
       }
     });
