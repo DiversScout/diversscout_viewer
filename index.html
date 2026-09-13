@@ -159,7 +159,16 @@
     #status-msg { font-size: 11px; font-weight: bold; color: #ff0; text-shadow: 0 0 5px #ff0; text-transform: uppercase; }
     .color-dot { width: 10px; height: 10px; display: inline-block; box-shadow: 0 0 8px currentColor; border: 1px solid #fff; }
 
-    /* Leaflet ポップアップ (サイバーパンク風カスタム) */
+    /* Leaflet ツールチップ (HOVER用) */
+    .leaflet-tooltip { 
+      background: rgba(0, 0, 0, 0.9); border: 1px solid var(--neon-cyan); color: var(--neon-cyan); 
+      box-shadow: 0 0 10px var(--neon-cyan); font-family: 'Orbitron', sans-serif; text-shadow: 0 0 5px var(--neon-cyan); border-radius: 0;
+      white-space: normal; 
+      word-break: break-word; 
+    }
+    .leaflet-tooltip-top:before { border-top-color: var(--neon-cyan); }
+
+    /* Leaflet ポップアップ (CLICK固定表示用) */
     .cyber-popup .leaflet-popup-content-wrapper {
       background: var(--bg-dark);
       border: 2px solid var(--neon-cyan);
@@ -492,7 +501,7 @@
 
       if (!tripData || !tripData[targetCol]) { statusMsg.innerText = 'NO DATA'; return; }
 
-      const rawGeom = tripData[targetCol];
+      The rawGeom = tripData[targetCol];
       let coordsArray = [];
       if (rawGeom.type === 'LineString') coordsArray = rawGeom.coordinates;
       else if (typeof rawGeom === 'string') coordsArray = rawGeom.replace(/^.*LINESTRING\s*\(/i, '').replace(/\).*$/, '').split(',').map(p => p.trim().split(/\s+/).map(Number));
@@ -509,6 +518,7 @@
     } catch (err) { statusMsg.innerText = 'ERROR'; }
   }
 
+  // バリア（それ以外）は HOVER (bindTooltip) に設定
   function updateBarrierDisplay() {
     barrierLayerGroup.clearLayers();
     const isCyber = document.body.classList.contains('cyber-mode');
@@ -532,7 +542,7 @@
         if (coords) {
           const hasAnnotation = b.annotations && b.annotations.length > 0;
           let marker;
-          let popupHtml = '';
+          let tooltipHtml = '';
 
           if (hasAnnotation) {
             const size = radius * 2.5; 
@@ -543,33 +553,33 @@
             const icon = L.divIcon({ className: '', html: htmlStr, iconSize: [size, size], iconAnchor: [size/2, size/2] });
             marker = L.marker(coords, { icon: icon });
 
-            popupHtml = `<div style="text-align: center;">`;
-            popupHtml += `<div style="font-weight: bold; border-bottom: 1px dashed ${color}; margin-bottom: 5px; padding-bottom: 3px;">${baseLabel}</div>`;
+            tooltipHtml = `<div style="text-align: center;">`;
+            tooltipHtml += `<div style="font-weight: bold; border-bottom: 1px dashed ${color}; margin-bottom: 5px; padding-bottom: 3px;">${baseLabel}</div>`;
             
             b.annotations.forEach(ann => {
               if (ann.image_url) {
-                popupHtml += `<img src="${ann.image_url}" alt="Alert" style="width: 100%; height: auto; border-radius: 4px; margin-bottom: 4px;" />`;
+                tooltipHtml += `<img src="${ann.image_url}" alt="Alert" style="width: 100%; height: auto; border-radius: 4px; margin-bottom: 4px;" />`;
               }
-              popupHtml += `<div style="font-size: 11px; line-height: 1.4; text-align: left; width: 140px; max-height: 70px; overflow-y: auto; padding-right: 4px; border: 1px solid rgba(0,255,255,0.2); background: rgba(0,0,0,0.5);">${ann.comment || 'NO COMMENT'}</div>`;
+              tooltipHtml += `<div style="font-size: 11px; line-height: 1.4; text-align: left; width: 140px; max-height: 70px; overflow-y: auto; padding-right: 4px; border: 1px solid rgba(0,255,255,0.2); background: rgba(0,0,0,0.5);">${ann.comment || 'NO COMMENT'}</div>`;
             });
-            popupHtml += `</div>`;
+            tooltipHtml += `</div>`;
           } else {
             const markerOpts = isCyber
               ? { radius: radius, fillColor: '#000', color: color, weight: 3, fillOpacity: 0.8 }
               : { radius: radius, fillColor: color, color: '#ffffff', weight: 1.5, fillOpacity: 0.85 };
             marker = L.circleMarker(coords, markerOpts);
 
-            popupHtml = `<div style="width: 120px; text-align: center; font-size: 11px; word-break: break-word;">${baseLabel}</div>`;
+            tooltipHtml = `<div style="width: 120px; text-align: center; font-size: 11px; word-break: break-word;">${baseLabel}</div>`;
           }
 
-          // bindTooltip から bindPopupに変更（クリックで固定表示＆スクロール可能に）
-          marker.bindPopup(popupHtml, { className: 'cyber-popup' }).addTo(barrierLayerGroup);
+          // バリアはホバー用ツールチップに戻す
+          marker.bindTooltip(tooltipHtml, { direction: 'top' }).addTo(barrierLayerGroup);
         }
       }
     });
   }
 
-  // 単独アラートの描画
+  // USER REPORT は CLICK (bindPopup) に設定
   function updateAlertDisplay() {
     alertLayerGroup.clearLayers();
     if (!chkAlert.checked) return;
@@ -599,11 +609,12 @@
       popupHtml += `<div style="font-size: 9px; margin-top: 4px; opacity: 0.7;">${new Date(alert.created_at).toLocaleString('ja-JP')}</div>`;
       popupHtml += `</div>`;
 
+      // クリックで固定表示・スクロール可能
       marker.bindPopup(popupHtml, { className: 'cyber-popup' }).addTo(alertLayerGroup);
     });
   }
 
-  // トラッキングデバイスの描画
+  // TRACKING DEVICE は CLICK (bindPopup) に設定
   function updateDeviceDisplay() {
     deviceLayerGroup.clearLayers();
     if (!chkDevice.checked) return;
@@ -627,6 +638,7 @@
         ? { radius: 7, fillColor: '#000', color: colorDevice, weight: 3, fillOpacity: 0.9 }
         : { radius: 8, fillColor: colorDevice, color: '#ffffff', weight: 2, fillOpacity: 0.9 };
 
+      // クリックで固定表示・スクロール可能
       L.circleMarker([d.lat, d.lon], markerOpts).bindPopup(popupHtml, { className: 'cyber-popup' }).addTo(deviceLayerGroup);
     });
   }
