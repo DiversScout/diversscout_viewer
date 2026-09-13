@@ -163,8 +163,8 @@
     .leaflet-tooltip { 
       background: rgba(0, 0, 0, 0.9); border: 1px solid var(--neon-cyan); color: var(--neon-cyan); 
       box-shadow: 0 0 10px var(--neon-cyan); font-family: 'Orbitron', sans-serif; text-shadow: 0 0 5px var(--neon-cyan); border-radius: 0;
-      white-space: normal; /* 追加: 自動折り返しを許可 */
-      word-break: break-word; /* 追加: 長い文字列での折り返し */
+      white-space: normal; 
+      word-break: break-word; 
     }
     .leaflet-tooltip-top:before { border-top-color: var(--neon-cyan); }
   </style>
@@ -329,12 +329,12 @@
 
   const dataLayerGroup = L.layerGroup().addTo(map);
   const barrierLayerGroup = L.layerGroup().addTo(map);
-  const alertLayerGroup = L.layerGroup().addTo(map); // 単独アラート用レイヤー
+  const alertLayerGroup = L.layerGroup().addTo(map); 
   const deviceLayerGroup = L.layerGroup().addTo(map);
 
   let currentBarriers = [];
   let currentDevices = [];
-  let currentStandaloneAlerts = []; // 単独アラート用データ保持
+  let currentStandaloneAlerts = []; 
 
   function redrawAllMapElements() {
     dataLayerGroup.clearLayers();
@@ -358,7 +358,7 @@
     
     // 2. マーカー類を描画
     updateBarrierDisplay();
-    updateAlertDisplay(); // 単独アラート描画
+    updateAlertDisplay(); 
     updateDeviceDisplay();
   }
 
@@ -395,7 +395,7 @@
   const steepSlider = document.getElementById('steep-slider');
   const steepValText = document.getElementById('steep-val-text');
 
-  const chkAlert = document.getElementById('chk-alert'); // 独立アラートのトグル
+  const chkAlert = document.getElementById('chk-alert'); 
   const chkDevice = document.getElementById('chk-device');
 
   modeSelect.addEventListener('change', loadData);
@@ -436,7 +436,6 @@
     } catch (err) { console.error(err); }
   }
 
-  // 単独アラートデータの取得（初期化時に実行し、ルート切り替えには影響されない）
   async function fetchStandaloneAlerts() {
     if (!supabaseClient) return;
     try {
@@ -536,15 +535,15 @@
             const icon = L.divIcon({ className: '', html: htmlStr, iconSize: [size, size], iconAnchor: [size/2, size/2] });
             marker = L.marker(coords, { icon: icon });
 
-            // CSS修正に合わせて max-width 拡大、左揃え適用
-            tooltipHtml = `<div style="max-width: 180px; text-align: center;">`;
+            tooltipHtml = `<div style="text-align: center;">`;
             tooltipHtml += `<div style="font-weight: bold; border-bottom: 1px dashed ${color}; margin-bottom: 5px; padding-bottom: 3px;">${baseLabel}</div>`;
             
             b.annotations.forEach(ann => {
               if (ann.image_url) {
                 tooltipHtml += `<img src="${ann.image_url}" alt="Alert" style="width: 100%; height: auto; border-radius: 4px; margin-bottom: 4px;" />`;
               }
-              tooltipHtml += `<div style="font-size: 11px; line-height: 1.4; text-align: left;">${ann.comment || 'NO COMMENT'}</div>`;
+              // 幅・高さを制限してスクロール可能に調整
+              tooltipHtml += `<div style="font-size: 11px; line-height: 1.4; text-align: left; width: 140px; max-height: 70px; overflow-y: auto; padding-right: 4px; border: 1px solid rgba(0,255,255,0.2); background: rgba(0,0,0,0.5);">${ann.comment || 'NO COMMENT'}</div>`;
             });
             tooltipHtml += `</div>`;
           } else {
@@ -579,15 +578,15 @@
       const icon = L.divIcon({ className: '', html: htmlStr, iconSize: [size, size], iconAnchor: [size/2, size/2] });
       const marker = L.marker([alert.lat, alert.lon], { icon: icon });
 
-      // CSS修正に合わせて max-width 拡大、左揃え適用
-      let tooltipHtml = `<div style="max-width: 180px; text-align: center;">`;
+      let tooltipHtml = `<div style="text-align: center;">`;
       tooltipHtml += `<div style="font-weight: bold; border-bottom: 1px dashed ${colorAlert}; margin-bottom: 5px; padding-bottom: 3px; color: ${colorAlert};">USER REPORT</div>`;
       
       if (alert.image_url) {
         tooltipHtml += `<img src="${alert.image_url}" alt="Alert" style="width: 100%; height: auto; border-radius: 4px; margin-bottom: 4px;" />`;
       }
       
-      tooltipHtml += `<div style="font-size: 11px; line-height: 1.4; text-align: left; margin-bottom: 4px;">${alert.comment || 'NO COMMENT'}</div>`;
+      // 幅・高さを制限してスクロール可能に調整
+      tooltipHtml += `<div style="font-size: 11px; line-height: 1.4; text-align: left; margin-bottom: 4px; width: 140px; max-height: 70px; overflow-y: auto; padding-right: 4px; border: 1px solid rgba(255,42,133,0.2); background: rgba(0,0,0,0.5);">${alert.comment || 'NO COMMENT'}</div>`;
       tooltipHtml += `<div style="font-size: 9px; margin-top: 4px; opacity: 0.7;">${new Date(alert.created_at).toLocaleString('ja-JP')}</div>`;
       tooltipHtml += `</div>`;
 
