@@ -143,7 +143,7 @@
     .leaflet-tooltip { 
       background: rgba(255, 255, 255, 0.95); border: none; color: var(--text-main); 
       box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15); font-family: inherit; border-radius: 8px;
-      padding: 8px; white-space: nowrap; font-weight: bold; /* white-spaceをnowrapに変更 */
+      padding: 8px; white-space: nowrap; font-weight: bold; 
     }
     .leaflet-tooltip-top:before { border-top-color: rgba(255, 255, 255, 0.95); }
 
@@ -360,8 +360,12 @@
   const supabaseClient = (SUPABASE_URL.startsWith('__')) 
     ? null : window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
-  const map = L.map('map', { zoomControl: false }).setView([33.883, 130.875], 15);
+  // 初期化時に attributionControl: false を指定し、デフォルトの右下表示を無効化
+  const map = L.map('map', { zoomControl: false, attributionControl: false }).setView([33.883, 130.875], 15);
   L.control.zoom({ position: 'topright' }).addTo(map);
+  
+  // コピーライト（帰属表示）を左下に配置して、凡例パネルとの重なりを回避
+  L.control.attribution({ position: 'bottomleft' }).addTo(map);
   
   const layers = {
     osm: L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19, attribution: '© OpenStreetMap' }),
