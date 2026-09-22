@@ -3,208 +3,176 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>CYBER-WHEELCHAIR ROUTE VIEWER v1.0</title>
+  <title>DiversScout Viewer v0.1b</title>
   
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-  <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&display=swap" rel="stylesheet">
+  <!-- 丸みのあるポップなフォントを読み込み -->
+  <link href="https://fonts.googleapis.com/css2?family=M+PLUS+Rounded+1c:wght@400;700;900&display=swap" rel="stylesheet">
   
   <style>
     :root {
-      /* 通常モード用フラットカラー */
-      --color-route: #16a085;
-      --color-step: #d63031;
-      --color-wheelie: #e17055;
-      --color-steep: #6c5ce7;
-      --color-device: #0984e3;
-      --color-alert: #e84393;
+      /* イラストテイストに合わせた柔らかいパステルカラー / ポップカラー */
+      --color-route: #4DB6AC;  /* 爽やかなグリーン */
+      --color-step: #FF8A65;   /* 柔らかいオレンジ */
+      --color-wheelie: #FFB74D; /* ポップなイエロー */
+      --color-steep: #BA68C8;   /* パステルパープル */
+      --color-device: #64B5F6;  /* スカイブルー */
+      --color-alert: #F06292;   /* パステルピンク */
       
-      /* CYBER_MODE用ネオンカラー */
-      --neon-cyan: #0ff;
-      --neon-magenta: #f0f;
-      --neon-yellow: #ff0;
-      --neon-orange: #f90;
-      --neon-green: #3f3;
-      --neon-pink: #ff2a85;
-      
-      --bg-dark: rgba(5, 5, 10, 0.9);
+      --bg-panel: rgba(255, 255, 255, 0.95);
+      --text-main: #555555;
+      --text-muted: #888888;
+      --border-light: #e0e0e0;
     }
 
     body, html { 
       margin: 0; padding: 0; height: 100%; 
-      font-family: 'Orbitron', -apple-system, sans-serif; 
+      font-family: 'M PLUS Rounded 1c', 'Hiragino Maru Gothic ProN', sans-serif; 
       overflow: hidden;
-      color: var(--neon-cyan);
-      background-color: #f0f0f0; 
-    }
-
-    body.cyber-mode {
-      background-color: #000;
-      --color-route: var(--neon-cyan);
-      --color-step: var(--neon-magenta);
-      --color-wheelie: var(--neon-orange);
-      --color-steep: var(--neon-yellow);
-      --color-device: var(--neon-green);
-      --color-alert: var(--neon-pink);
+      color: var(--text-main);
+      background-color: #f4f6f8; 
     }
 
     #map { 
       position: absolute; top: 0; left: 0; width: 100vw; height: 100vh; z-index: 1; 
-      background: #ddd; 
-    }
-    body.cyber-mode #map { background: #000; }
-
-    #cyber-effects {
-      display: none; 
-      position: absolute; top: 0; left: 0; width: 100vw; height: 100vh;
-      pointer-events: none; z-index: 5000; 
-    }
-    body.cyber-mode #cyber-effects { display: block; }
-    
-    #cyber-effects::before {
-      content: ""; position: absolute; top: 0; left: 0; width: 100%; height: 100%;
-      box-shadow: inset 0 0 120px rgba(0,0,0,0.9);
-    }
-    #cyber-effects::after {
-      content: ""; position: absolute; top: 0; left: 0; width: 100%; height: 100%;
-      background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.3) 50%);
-      background-size: 100% 4px;
+      background: #eef1f5; 
     }
 
-    .cyber-tile { filter: invert(100%) sepia(20%) hue-rotate(180deg) brightness(70%) contrast(150%); }
-    body.cyber-mode .cyber-route-line { filter: drop-shadow(0 0 8px var(--neon-cyan)); }
-
-    /* UIパネル */
-    .cyber-panel {
-      background: var(--bg-dark);
-      border: 2px solid var(--neon-cyan);
-      box-shadow: 0 0 15px var(--neon-cyan), inset 0 0 15px rgba(0, 255, 255, 0.2);
-      padding: 10px; /* 余白を縮小 */
+    /* UIパネル (柔らかい角丸とドロップシャドウ) */
+    .ui-panel {
+      background: var(--bg-panel);
+      border-radius: 12px;
+      box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+      padding: 12px; 
       z-index: 10000;
+      border: 1px solid var(--border-light);
     }
 
     .panel-header {
       display: flex; justify-content: space-between; align-items: center;
       cursor: pointer;
-      border-bottom: 2px solid var(--neon-cyan); padding-bottom: 6px; /* 余白縮小 */
-      margin-bottom: 8px; /* 余白縮小 */
+      border-bottom: 2px dashed var(--border-light); 
+      padding-bottom: 8px; 
+      margin-bottom: 10px; 
       transition: background 0.2s;
     }
-    .panel-header:hover { background: rgba(0, 255, 255, 0.15); }
-    .panel-header h2 { margin: 0; font-size: 13px; font-weight: 900; letter-spacing: 0.1em; text-shadow: 0 0 8px var(--neon-cyan); }
-    
-    .cyber-btn {
-      background: rgba(0, 0, 0, 0.8); color: var(--neon-cyan);
-      border: 1px solid var(--neon-cyan); padding: 3px 6px; /* ボタン余白縮小 */
-      font-family: 'Orbitron', sans-serif; font-size: 10px; font-weight: bold; cursor: pointer;
-      box-shadow: 0 0 5px var(--neon-cyan); transition: all 0.2s ease-in-out; text-transform: uppercase;
+    .panel-header:hover { background: rgba(0, 0, 0, 0.02); border-radius: 6px; }
+    .panel-header h2 { 
+      margin: 0; font-size: 14px; font-weight: 700; color: #333;
     }
-    .cyber-btn:hover { background: var(--neon-cyan); color: #000; }
-    .cyber-btn.collapsed-state { color: #f90; border-color: #f90; box-shadow: 0 0 5px #f90; }
-    .cyber-btn.collapsed-state:hover { background: #f90; color: #000; }
+    
+    .ui-btn {
+      background: #f0f4f8; color: var(--text-main);
+      border: 1px solid var(--border-light); border-radius: 20px;
+      padding: 4px 10px; 
+      font-family: inherit; font-size: 11px; font-weight: bold; cursor: pointer;
+      transition: all 0.2s ease-in-out;
+    }
+    .ui-btn:hover { background: #e2e8f0; color: #333; }
+    .ui-btn.collapsed-state { background: #fff3e0; border-color: #ffcc80; color: #e65100; }
+    .ui-btn.collapsed-state:hover { background: #ffe0b2; }
 
     .collapsed { display: none !important; }
 
-    #control-panel { position: absolute; top: 15px; left: 15px; width: 300px; } /* 全体幅と位置調整 */
+    #control-panel { position: absolute; top: 15px; left: 15px; width: 300px; } 
     #control-content {
-      display: flex; flex-direction: column; gap: 10px; /* セクション間の隙間を縮小 */
+      display: flex; flex-direction: column; gap: 12px; 
       max-height: calc(100vh - 80px); overflow-y: auto; padding-right: 5px;
     }
-    #control-content::-webkit-scrollbar { width: 4px; }
-    #control-content::-webkit-scrollbar-thumb { background: var(--neon-cyan); box-shadow: 0 0 5px var(--neon-cyan); }
+    #control-content::-webkit-scrollbar { width: 6px; }
+    #control-content::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 3px; }
 
     #legend-panel { position: absolute; bottom: 25px; right: 20px; width: 220px; }
-    #legend-content { font-size: 11px; color: var(--neon-cyan); line-height: 20px; font-family: 'Orbitron', sans-serif; }
-    #legend-content i { width: 10px; height: 10px; float: left; margin-top: 5px; margin-right: 8px; box-shadow: 0 0 8px currentColor; }
-
-    .layer-btn-group { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
-    .layer-btn {
-      background: rgba(0, 0, 0, 0.8); color: var(--neon-cyan); border: 1px solid var(--neon-cyan); padding: 6px 4px;
-      font-family: 'Orbitron', sans-serif; font-size: 9px; cursor: pointer; transition: all 0.2s; text-align: center;
+    #legend-content { font-size: 12px; color: var(--text-main); line-height: 22px; }
+    #legend-content i { 
+      width: 12px; height: 12px; float: left; margin-top: 5px; margin-right: 8px; 
+      border-radius: 50%; border: 2px solid #fff; box-shadow: 0 1px 3px rgba(0,0,0,0.2);
     }
-    .layer-btn:hover { background: rgba(0, 255, 255, 0.2); }
-    .layer-btn.active { background: var(--neon-cyan); color: #000; box-shadow: 0 0 10px var(--neon-cyan); font-weight: bold; }
 
-    .panel-section { display: flex; flex-direction: column; gap: 8px; } /* 項目間余白縮小 */
-    .panel-section h3 { margin: 0; font-size: 11px; font-weight: 700; letter-spacing: 0.1em; border-bottom: 1px dashed var(--neon-cyan); padding-bottom: 2px; text-shadow: 0 0 5px var(--neon-cyan); opacity: 0.8; }
-    .control-group { display: flex; flex-direction: column; gap: 4px; }
+    .layer-btn-group { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 6px; }
+    .layer-btn {
+      background: #fff; color: var(--text-main); border: 1px solid var(--border-light); 
+      padding: 8px 4px; border-radius: 6px;
+      font-family: inherit; font-size: 10px; cursor: pointer; transition: all 0.2s; text-align: center;
+    }
+    .layer-btn:hover { background: #f8fafc; }
+    .layer-btn.active { background: var(--color-device); color: #fff; border-color: var(--color-device); font-weight: bold; }
+
+    .panel-section { display: flex; flex-direction: column; gap: 8px; } 
+    .panel-section h3 { 
+      margin: 0; font-size: 12px; font-weight: 700; color: #666;
+      border-bottom: 2px solid #f0f0f0; padding-bottom: 4px; 
+    }
+    .control-group { display: flex; flex-direction: column; gap: 4px; padding: 4px 6px; background: #fafafa; border-radius: 6px; }
     .control-header { display: flex; justify-content: space-between; align-items: center; }
-    .control-label { font-size: 11px; display: flex; align-items: center; gap: 6px; text-shadow: 0 0 5px currentColor; }
+    .control-label { font-size: 12px; display: flex; align-items: center; gap: 6px; font-weight: bold; }
 
     select { 
-      width: 100%; padding: 5px 8px; font-size: 10px; font-family: 'Orbitron', sans-serif;
-      background: rgba(0,0,0,0.8); color: var(--neon-cyan); border: 1px solid var(--neon-cyan); box-shadow: 0 0 5px var(--neon-cyan);
-      outline: none; cursor: pointer; text-transform: uppercase;
+      width: 100%; padding: 6px 10px; font-size: 11px; font-family: inherit;
+      background: #fff; color: var(--text-main); border: 1px solid var(--border-light); border-radius: 6px;
+      outline: none; cursor: pointer; 
     }
-    select:hover { background: rgba(0, 255, 255, 0.15); }
-    select option { background: #000; color: var(--neon-cyan); }
+    select:hover { border-color: #bbb; }
 
-    .cyber-checkbox { position: relative; display: inline-block; width: 16px; height: 16px; cursor: pointer; } /* チェックボックス小型化 */
-    .cyber-checkbox input { opacity: 0; width: 0; height: 0; }
-    .checkmark { position: absolute; top: 0; left: 0; right: 0; bottom: 0; border: 1px solid currentColor; box-shadow: 0 0 8px currentColor; transition: 0.2s; }
-    .cyber-checkbox input:checked ~ .checkmark { background-color: currentColor; box-shadow: 0 0 15px currentColor; }
-    .cyber-checkbox input:checked ~ .checkmark:after {
-      content: ""; position: absolute; left: 4px; top: 1px;
-      width: 4px; height: 8px; border: solid #000; border-width: 0 2px 2px 0; transform: rotate(45deg);
+    /* 可愛い丸型チェックボックス */
+    .ui-checkbox { position: relative; display: inline-block; width: 18px; height: 18px; cursor: pointer; } 
+    .ui-checkbox input { opacity: 0; width: 0; height: 0; }
+    .checkmark { 
+      position: absolute; top: 0; left: 0; right: 0; bottom: 0; 
+      background-color: #fff; border: 2px solid var(--border-light); border-radius: 4px; transition: 0.2s; 
+    }
+    .ui-checkbox input:checked ~ .checkmark { background-color: currentColor; border-color: currentColor; }
+    .ui-checkbox input:checked ~ .checkmark:after {
+      content: ""; position: absolute; left: 5px; top: 2px;
+      width: 4px; height: 8px; border: solid #fff; border-width: 0 2px 2px 0; transform: rotate(45deg);
     }
 
     .range-container { display: flex; align-items: center; gap: 8px; }
     input[type=range] { -webkit-appearance: none; flex: 1; background: transparent; position: relative; z-index: 10; cursor: pointer; }
     input[type=range]:focus { outline: none; }
-    input[type=range]::-webkit-slider-runnable-track { width: 100%; height: 2px; background: currentColor; box-shadow: 0 0 5px currentColor; cursor: pointer; }
+    input[type=range]::-webkit-slider-runnable-track { width: 100%; height: 4px; background: #e2e8f0; border-radius: 2px; }
     input[type=range]::-webkit-slider-thumb { 
-      height: 12px; width: 12px; background: #ffffff; border: 2px solid currentColor; border-radius: 50%;
-      box-shadow: 0 0 8px currentColor; cursor: pointer; -webkit-appearance: none; margin-top: -5px; 
+      height: 14px; width: 14px; background: currentColor; border: 2px solid #fff; border-radius: 50%;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.3); cursor: pointer; -webkit-appearance: none; margin-top: -5px; 
     }
-    .slider-val { font-size: 11px; min-width: 45px; text-align: right; text-shadow: 0 0 5px currentColor; }
-    #status-msg { font-size: 10px; font-weight: bold; color: #ff0; text-shadow: 0 0 5px #ff0; text-transform: uppercase; margin-top: -4px;}
-    .color-dot { width: 8px; height: 8px; display: inline-block; box-shadow: 0 0 8px currentColor; border: 1px solid #fff; }
+    .slider-val { font-size: 11px; min-width: 45px; text-align: right; color: var(--text-muted); font-weight: bold; }
+    #status-msg { font-size: 11px; font-weight: bold; color: var(--color-device); margin-top: 2px;}
+    .color-dot { width: 10px; height: 10px; display: inline-block; border-radius: 50%; }
 
-    /* Leaflet ツールチップ (HOVER用) */
+    /* Leaflet ツールチップ (HOVER用 - 丸みのあるデザイン) */
     .leaflet-tooltip { 
-      background: rgba(0, 0, 0, 0.9); border: 1px solid var(--neon-cyan); color: var(--neon-cyan); 
-      box-shadow: 0 0 10px var(--neon-cyan); font-family: 'Orbitron', sans-serif; text-shadow: 0 0 5px var(--neon-cyan); border-radius: 0;
-      white-space: normal; 
-      word-break: break-word; 
+      background: rgba(255, 255, 255, 0.95); border: none; color: var(--text-main); 
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15); font-family: inherit; border-radius: 8px;
+      padding: 8px; white-space: normal; word-break: break-word; font-weight: bold;
     }
-    .leaflet-tooltip-top:before { border-top-color: var(--neon-cyan); }
+    .leaflet-tooltip-top:before { border-top-color: rgba(255, 255, 255, 0.95); }
 
     /* Leaflet ポップアップ (CLICK固定表示用) */
-    .cyber-popup .leaflet-popup-content-wrapper {
-      background: var(--bg-dark);
-      border: 2px solid var(--neon-cyan);
-      box-shadow: 0 0 15px var(--neon-cyan), inset 0 0 10px rgba(0, 255, 255, 0.2);
-      color: var(--neon-cyan);
-      font-family: 'Orbitron', sans-serif;
-      border-radius: 0;
+    .ui-popup .leaflet-popup-content-wrapper {
+      background: var(--bg-panel);
+      border: none;
+      box-shadow: 0 4px 15px rgba(0, 0, 0, 0.15);
+      color: var(--text-main);
+      font-family: inherit;
+      border-radius: 12px;
     }
-    .cyber-popup .leaflet-popup-tip {
-      background: var(--bg-dark);
-      border: 1px solid var(--neon-cyan);
-    }
-    .cyber-popup .leaflet-popup-close-button {
-      color: var(--neon-cyan) !important;
-    }
+    .ui-popup .leaflet-popup-tip { background: var(--bg-panel); box-shadow: none; }
+    .ui-popup .leaflet-popup-close-button { color: var(--text-muted) !important; }
 
-    /* スプラッシュスクリーン用スタイル */
+    /* スプラッシュスクリーン用スタイル (白ベースの可愛いデザイン) */
     #splash-screen {
       position: fixed;
       top: 0;
       left: 0;
       width: 100vw;
       height: 100vh;
-      background-color: #05050a; /* サイバー感のある黒ベース */
+      background-color: #ffffff !important;
       display: flex;
       flex-direction: column;
       justify-content: center;
       align-items: center;
       z-index: 99999;
       transition: opacity 0.8s ease-out, visibility 0.8s ease-out;
-    }
-    #splash-screen::after {
-      content: ""; position: absolute; top: 0; left: 0; width: 100%; height: 100%;
-      background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.3) 50%);
-      background-size: 100% 4px;
-      pointer-events: none;
     }
     #splash-screen img {
       max-width: 250px;
@@ -214,21 +182,19 @@
       z-index: 2;
     }
     #splash-screen h1 {
-      font-family: 'Orbitron', sans-serif;
       font-size: 28px;
-      color: var(--neon-cyan);
+      color: #333333;
       margin: 0;
-      letter-spacing: 0.1em;
-      text-shadow: 0 0 15px var(--neon-cyan);
+      font-weight: 900;
+      letter-spacing: 0.05em;
       position: relative;
       z-index: 2;
     }
     #splash-screen p {
-      font-family: 'Orbitron', sans-serif;
-      font-size: 14px;
-      color: #fff;
-      margin: 10px 0 0 0;
-      letter-spacing: 0.2em;
+      font-size: 16px;
+      color: #888888;
+      margin: 5px 0 0 0;
+      font-weight: bold;
       position: relative;
       z-index: 2;
     }
@@ -242,54 +208,53 @@
 
 <!-- スプラッシュスクリーン -->
 <div id="splash-screen">
-  <img src="/images/splush.png" alt="Splash Image">
+  <!-- パスを images に変更 -->
+  <img src="./images/splush.png" alt="Splash Image">
   <h1>DiversScout Viewer</h1>
   <p>v0.1b</p>
 </div>
 
 <div id="map"></div>
-<div id="cyber-effects"></div>
 
 <!-- コントロールパネル -->
-<div id="control-panel" class="cyber-panel">
+<div id="control-panel" class="ui-panel">
   <div class="panel-header" onclick="toggleSection('control-content', 'btn-control')">
-    <h2>SYS_CONTROL</h2>
-    <button id="btn-control" class="cyber-btn">▼ CLOSE</button>
+    <h2>コントローラー</h2>
+    <button id="btn-control" class="ui-btn">▼ 閉じる</button>
   </div>
 
   <div id="control-content">
     <div class="panel-section">
-      <h3>MAP_LAYER</h3>
+      <h3>マップレイヤー</h3>
       <div class="layer-btn-group">
-        <button class="layer-btn active" onclick="switchMapLayer('osm', this)">NORMAL (OSM)</button>
-        <button class="layer-btn" onclick="switchMapLayer('cyber', this)">CYBER_MODE</button>
-        <button class="layer-btn" onclick="switchMapLayer('gsi', this)">GSI_MAP</button>
-        <button class="layer-btn" onclick="switchMapLayer('topo', this)">TOPO_MAP</button>
+        <button class="layer-btn active" onclick="switchMapLayer('osm', this)">標準地図 (OSM)</button>
+        <button class="layer-btn" onclick="switchMapLayer('gsi', this)">国土地理院</button>
+        <button class="layer-btn" onclick="switchMapLayer('topo', this)">地形図</button>
       </div>
     </div>
 
     <div class="panel-section">
-      <h3>SYS_DATA_SOURCE</h3>
+      <h3>データソース</h3>
       <div class="control-group">
-        <div class="control-header"><span class="control-label">TARGET_ROUTE</span></div>
-        <select id="mode-select"><option value="">FETCHING DB...</option></select>
+        <div class="control-header"><span class="control-label">対象ルート</span></div>
+        <select id="mode-select"><option value="">データを取得中...</option></select>
       </div>
       <div class="control-group">
-        <div class="control-header"><span class="control-label">DATA_TYPE</span></div>
+        <div class="control-header"><span class="control-label">データタイプ</span></div>
         <select id="datatype-select">
-          <option value="cleansed">CLEANSED (OSRM)</option>
-          <option value="raw">RAW_GEOMETRY</option>
+          <option value="cleansed">補正済みデータ (OSRM)</option>
+          <option value="raw">生データ (Raw)</option>
         </select>
       </div>
       <span id="status-msg"></span>
     </div>
 
     <div class="panel-section">
-      <h3>BARRIER_ANALYTICS</h3>
+      <h3>バリア解析 (閾値設定)</h3>
       <div class="control-group" style="color: var(--color-step);">
         <div class="control-header">
-          <label class="control-label"><span class="color-dot" style="background: currentColor;"></span>STEP_SHOCK</label>
-          <label class="cyber-checkbox"><input type="checkbox" id="chk-step" checked><span class="checkmark"></span></label>
+          <label class="control-label"><span class="color-dot" style="background: currentColor;"></span>段差ショック</label>
+          <label class="ui-checkbox"><input type="checkbox" id="chk-step" checked><span class="checkmark"></span></label>
         </div>
         <div class="range-container">
           <input type="range" id="step-slider" min="0" max="10" step="0.5" value="3.5">
@@ -299,8 +264,8 @@
 
       <div class="control-group" style="color: var(--color-wheelie);">
         <div class="control-header">
-          <label class="control-label"><span class="color-dot" style="background: currentColor;"></span>WHEELIE</label>
-          <label class="cyber-checkbox"><input type="checkbox" id="chk-wheelie" checked><span class="checkmark"></span></label>
+          <label class="control-label"><span class="color-dot" style="background: currentColor;"></span>ウィリー状態</label>
+          <label class="ui-checkbox"><input type="checkbox" id="chk-wheelie" checked><span class="checkmark"></span></label>
         </div>
         <div class="range-container">
           <input type="range" id="wheelie-slider" min="0" max="300" step="10" value="100">
@@ -310,32 +275,32 @@
 
       <div class="control-group" style="color: var(--color-steep);">
         <div class="control-header">
-          <label class="control-label"><span class="color-dot" style="background: currentColor;"></span>STEEP_SLOPE</label>
-          <label class="cyber-checkbox"><input type="checkbox" id="chk-steep" checked><span class="checkmark"></span></label>
+          <label class="control-label"><span class="color-dot" style="background: currentColor;"></span>急傾斜</label>
+          <label class="ui-checkbox"><input type="checkbox" id="chk-steep" checked><span class="checkmark"></span></label>
         </div>
         <div class="range-container">
           <input type="range" id="steep-slider" min="0" max="30" step="1" value="5">
-          <span class="slider-val"><span id="steep-val-text">5</span> DEG</span>
+          <span class="slider-val"><span id="steep-val-text">5</span> 度</span>
         </div>
       </div>
     </div>
     
     <div class="panel-section">
-      <h3>INDEPENDENT_ALERTS</h3>
+      <h3>ユーザーレポート</h3>
       <div class="control-group" style="color: var(--color-alert);">
         <div class="control-header">
-          <label class="control-label"><span class="color-dot" style="background: currentColor;"></span>USER_REPORT</label>
-          <label class="cyber-checkbox"><input type="checkbox" id="chk-alert" checked><span class="checkmark"></span></label>
+          <label class="control-label"><span class="color-dot" style="background: currentColor;"></span>レポート表示</label>
+          <label class="ui-checkbox"><input type="checkbox" id="chk-alert" checked><span class="checkmark"></span></label>
         </div>
       </div>
     </div>
 
     <div class="panel-section">
-      <h3>TRACKING_DEVICE</h3>
+      <h3>トラッキングデバイス</h3>
       <div class="control-group" style="color: var(--color-device);">
         <div class="control-header">
-          <label class="control-label"><span class="color-dot" style="background: currentColor;"></span>LIVE_POSITION</label>
-          <label class="cyber-checkbox"><input type="checkbox" id="chk-device" checked><span class="checkmark"></span></label>
+          <label class="control-label"><span class="color-dot" style="background: currentColor;"></span>現在位置表示</label>
+          <label class="ui-checkbox"><input type="checkbox" id="chk-device" checked><span class="checkmark"></span></label>
         </div>
       </div>
     </div>
@@ -343,18 +308,18 @@
 </div>
 
 <!-- 凡例パネル -->
-<div id="legend-panel" class="cyber-panel">
-  <div class="panel-header" onclick="toggleSection('legend-content', 'btn-legend')" style="margin-bottom:0; padding-bottom: 5px;">
-    <h2>SYS_LEGEND</h2>
-    <button id="btn-legend" class="cyber-btn">▼ CLOSE</button>
+<div id="legend-panel" class="ui-panel">
+  <div class="panel-header" onclick="toggleSection('legend-content', 'btn-legend')" style="margin-bottom:0; padding-bottom: 5px; border-bottom: none;">
+    <h2>凡例</h2>
+    <button id="btn-legend" class="ui-btn">▼ 閉じる</button>
   </div>
-  <div id="legend-content" style="margin-top: 10px; padding-top: 10px; border-top: 1px dashed var(--neon-cyan);">
-    <i style="background: var(--color-route); color: var(--color-route);"></i>ROUTE_TRACK<br>
-    <i style="background: var(--color-step); color: var(--color-step);"></i>STEP_SHOCK<br>
-    <i style="background: var(--color-wheelie); color: var(--color-wheelie);"></i>WHEELIE_ACT<br>
-    <i style="background: var(--color-steep); color: var(--color-steep);"></i>STEEP_SLOPE<br>
-    <i style="background: var(--color-alert); color: var(--color-alert);"></i>USER_REPORT<br>
-    <i style="background: var(--color-device); color: var(--color-device);"></i>LIVE_DEVICE<br>
+  <div id="legend-content" style="margin-top: 10px; padding-top: 10px; border-top: 2px dashed #e0e0e0;">
+    <i style="background: var(--color-route);"></i>走行ルート<br>
+    <i style="background: var(--color-step);"></i>段差ショック<br>
+    <i style="background: var(--color-wheelie);"></i>ウィリー状態<br>
+    <i style="background: var(--color-steep);"></i>急傾斜<br>
+    <i style="background: var(--color-alert);"></i>ユーザーレポート<br>
+    <i style="background: var(--color-device);"></i>トラッキングデバイス<br>
   </div>
 </div>
 
@@ -366,7 +331,7 @@
   window.addEventListener('load', () => {
     setTimeout(() => {
       document.getElementById('splash-screen').classList.add('splash-hidden');
-    }, 2000); // 2秒後にフェードアウトを開始
+    }, 2000); 
   });
 
   function toggleSection(contentId, btnId) {
@@ -376,12 +341,12 @@
     
     if (content.classList.contains('collapsed')) {
       content.classList.remove('collapsed');
-      btn.innerHTML = '▼ CLOSE';
+      btn.innerHTML = '▼ 閉じる';
       btn.classList.remove('collapsed-state');
-      if(contentId === 'legend-content') header.style.borderBottom = '2px solid var(--neon-cyan)';
+      if(contentId === 'legend-content') header.style.borderBottom = 'none';
     } else {
       content.classList.add('collapsed');
-      btn.innerHTML = '▶ OPEN';
+      btn.innerHTML = '▶ 開く';
       btn.classList.add('collapsed-state');
       if(contentId === 'legend-content') header.style.borderBottom = 'none';
     }
@@ -401,7 +366,6 @@
   
   const layers = {
     osm: L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19, attribution: '© OpenStreetMap' }),
-    cyber: L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19, attribution: '© OpenStreetMap', className: 'cyber-tile' }),
     gsi: L.tileLayer('https://cyberjapandata.gsi.go.jp/xyz/std/{z}/{x}/{y}.png', { maxZoom: 18, attribution: '国土地理院' }),
     topo: L.tileLayer('https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png', { maxZoom: 17, attribution: '© OpenTopoMap' })
   };
@@ -425,15 +389,10 @@
     alertLayerGroup.clearLayers();
     deviceLayerGroup.clearLayers();
 
-    const isCyber = document.body.classList.contains('cyber-mode');
-
-    // 1. ルート線
+    // 1. ルート線 (柔らかいデザイン)
     if (currentTripLatLngs && currentTripLatLngs.length > 0) {
-      const routeColor = isCyber ? 'var(--neon-cyan)' : 'var(--color-route)';
-      const routeWeight = isCyber ? 5 : 6;
       L.polyline(currentTripLatLngs, { 
-        color: routeColor, weight: routeWeight, opacity: 0.9, 
-        className: 'cyber-route-line'
+        color: 'var(--color-route)', weight: 7, opacity: 0.8, lineCap: 'round', lineJoin: 'round'
       }).addTo(dataLayerGroup);
       
       renderStartEnd(currentTripLatLngs[0], currentTripLatLngs[currentTripLatLngs.length - 1]);
@@ -449,17 +408,9 @@
     map.removeLayer(currentBaseLayer);
     currentBaseLayer = layers[layerKey];
     currentBaseLayer.addTo(map);
-
-    if (layerKey === 'cyber') {
-      document.body.classList.add('cyber-mode');
-    } else {
-      document.body.classList.remove('cyber-mode');
-    }
     
     document.querySelectorAll('.layer-btn').forEach(btn => btn.classList.remove('active'));
     btnElem.classList.add('active');
-
-    redrawAllMapElements();
   };
   
   const modeSelect = document.getElementById('mode-select');
@@ -549,7 +500,7 @@
     const tripId = modeSelect.value;
     if (!tripId || !supabaseClient) return;
 
-    statusMsg.innerText = 'LOADING...';
+    statusMsg.innerText = '読込中...';
     
     try {
       const targetCol = (dataTypeSelect.value === 'raw') ? 'raw_geom' : 'cleansed_geom';
@@ -565,7 +516,7 @@
       currentBarriers = barriersRes.data || [];
       const tripData = tripRes.data;
 
-      if (!tripData || !tripData[targetCol]) { statusMsg.innerText = 'NO DATA'; return; }
+      if (!tripData || !tripData[targetCol]) { statusMsg.innerText = 'データなし'; return; }
 
       const rawGeom = tripData[targetCol];
       let coordsArray = [];
@@ -581,26 +532,24 @@
       
       redrawAllMapElements();
       statusMsg.innerText = '';
-    } catch (err) { statusMsg.innerText = 'ERROR'; }
+    } catch (err) { statusMsg.innerText = 'エラー発生'; }
   }
 
-  // バリアは HOVER (bindTooltip)
   function updateBarrierDisplay() {
     barrierLayerGroup.clearLayers();
-    const isCyber = document.body.classList.contains('cyber-mode');
     
-    const colorStep = isCyber ? '#f0f' : '#d63031';
-    const colorWheelie = isCyber ? '#f90' : '#e17055';
-    const colorSteep = isCyber ? '#ff0' : '#6c5ce7';
+    const colorStep = '#FF8A65';
+    const colorWheelie = '#FFB74D';
+    const colorSteep = '#BA68C8';
 
     currentBarriers.forEach(b => {
-      let draw = false; let color = ''; let baseLabel = ''; let radius = 6;
+      let draw = false; let color = ''; let baseLabel = ''; let size = 16;
       if (b.barrier_type === 'step' && chkStep.checked && b.intensity >= parseFloat(stepSlider.value)) {
-        draw = true; color = colorStep; baseLabel = `SHOCK: ${Number(b.intensity).toFixed(2)} G`; radius = 7;
+        draw = true; color = colorStep; baseLabel = `段差: ${Number(b.intensity).toFixed(2)} G`; size = 18;
       } else if (b.barrier_type === 'wheelie' && chkWheelie.checked && Math.abs(b.intensity) >= parseFloat(wheelieSlider.value)) {
-        draw = true; color = colorWheelie; baseLabel = `WHEELIE: ${Number(Math.abs(b.intensity)).toFixed(1)} °/s`; radius = 6;
+        draw = true; color = colorWheelie; baseLabel = `ウィリー: ${Number(Math.abs(b.intensity)).toFixed(1)} °/s`; size = 16;
       } else if (b.barrier_type === 'steep_slope' && chkSteep.checked && b.intensity >= parseFloat(steepSlider.value)) {
-        draw = true; color = colorSteep; baseLabel = `SLOPE: ${Number(b.intensity).toFixed(1)} °`; radius = 5;
+        draw = true; color = colorSteep; baseLabel = `傾斜: ${Number(b.intensity).toFixed(1)} 度`; size = 14;
       }
 
       if (draw) {
@@ -610,41 +559,32 @@
           let marker;
           let tooltipHtml = '';
 
-          if (hasAnnotation) {
-            const size = radius * 2.5; 
-            const htmlStr = isCyber
-              ? `<div style="width:${size}px; height:${size}px; background:#000; border:2px solid ${color}; box-shadow:0 0 10px ${color}; transform: rotate(45deg);"></div>`
-              : `<div style="width:${size}px; height:${size}px; background:${color}; border:2px solid #fff; box-shadow:0 0 5px rgba(0,0,0,0.5); transform: rotate(45deg);"></div>`;
-            
-            const icon = L.divIcon({ className: '', html: htmlStr, iconSize: [size, size], iconAnchor: [size/2, size/2] });
-            marker = L.marker(coords, { icon: icon });
+          // イラストテイストの可愛い丸型マーカー
+          const htmlStr = `<div style="width:${size}px; height:${size}px; background:${color}; border:2px solid #fff; border-radius:50%; box-shadow:0 2px 6px rgba(0,0,0,0.25);"></div>`;
+          const icon = L.divIcon({ className: '', html: htmlStr, iconSize: [size, size], iconAnchor: [size/2, size/2] });
+          marker = L.marker(coords, { icon: icon });
 
+          if (hasAnnotation) {
             tooltipHtml = `<div style="text-align: center;">`;
-            tooltipHtml += `<div style="font-weight: bold; border-bottom: 1px dashed ${color}; margin-bottom: 5px; padding-bottom: 3px;">${baseLabel}</div>`;
+            tooltipHtml += `<div style="font-weight: bold; border-bottom: 2px dotted ${color}; margin-bottom: 5px; padding-bottom: 3px;">${baseLabel}</div>`;
             
             b.annotations.forEach(ann => {
               if (ann.image_url) {
-                tooltipHtml += `<img src="${ann.image_url}" alt="Alert" style="width: 100%; height: auto; border-radius: 4px; margin-bottom: 4px;" />`;
+                tooltipHtml += `<img src="${ann.image_url}" alt="Alert" style="width: 100%; height: auto; border-radius: 8px; margin-bottom: 4px;" />`;
               }
-              tooltipHtml += `<div style="font-size: 11px; line-height: 1.4; text-align: left; width: 140px; max-height: 70px; overflow-y: auto; padding-right: 4px; border: 1px solid rgba(0,255,255,0.2); background: rgba(0,0,0,0.5);">${ann.comment || 'NO COMMENT'}</div>`;
+              tooltipHtml += `<div style="font-size: 12px; line-height: 1.5; text-align: left; width: 140px; max-height: 70px; overflow-y: auto; padding: 4px; border-radius: 6px; background: #f8f9fa;">${ann.comment || 'コメントなし'}</div>`;
             });
             tooltipHtml += `</div>`;
           } else {
-            const markerOpts = isCyber
-              ? { radius: radius, fillColor: '#000', color: color, weight: 3, fillOpacity: 0.8 }
-              : { radius: radius, fillColor: color, color: '#ffffff', weight: 1.5, fillOpacity: 0.85 };
-            marker = L.circleMarker(coords, markerOpts);
-
-            tooltipHtml = `<div style="width: 120px; text-align: center; font-size: 11px; word-break: break-word;">${baseLabel}</div>`;
+            tooltipHtml = `<div style="text-align: center; font-size: 12px;">${baseLabel}</div>`;
           }
 
-          marker.bindTooltip(tooltipHtml, { direction: 'top' }).addTo(barrierLayerGroup);
+          marker.bindTooltip(tooltipHtml, { direction: 'top', offset: [0, -10] }).addTo(barrierLayerGroup);
         }
       }
     });
   }
 
-  // タイムスタンプが24時間経過しているか判定するヘルパー関数
   function isOlderThan24Hours(timestampStr) {
     if (!timestampStr) return true;
     const itemDate = new Date(timestampStr).getTime();
@@ -652,107 +592,90 @@
     return (now - itemDate) > (24 * 60 * 60 * 1000);
   }
 
-  // USER REPORT は CLICK (bindPopup) 
   function updateAlertDisplay() {
     alertLayerGroup.clearLayers();
     if (!chkAlert.checked) return;
-
-    const isCyber = document.body.classList.contains('cyber-mode');
     
     currentStandaloneAlerts.forEach(alert => {
       if (alert.lat == null || alert.lon == null) return;
       
       const isOld = isOlderThan24Hours(alert.created_at);
-      const colorAlert = isCyber ? '#ff2a85' : '#e84393';
-      const bgColor = isOld ? 'transparent' : (isCyber ? '#000' : colorAlert);
+      const colorAlert = '#F06292';
+      const bgColor = isOld ? '#fff' : colorAlert;
+      const borderCol = colorAlert;
       
-      const size = 18;
-      const htmlStr = isCyber
-        ? `<div style="width:${size}px; height:${size}px; background:${bgColor}; border:2px solid ${colorAlert}; box-shadow:0 0 10px ${colorAlert}; transform: rotate(45deg);"></div>`
-        : `<div style="width:${size}px; height:${size}px; background:${bgColor}; border:2px solid ${isOld ? colorAlert : '#fff'}; box-shadow:0 0 5px rgba(0,0,0,0.5); transform: rotate(45deg);"></div>`;
+      const size = 20;
+      const htmlStr = `<div style="width:${size}px; height:${size}px; background:${bgColor}; border:3px solid ${borderCol}; border-radius:50%; box-shadow:0 2px 6px rgba(0,0,0,0.3);"></div>`;
       
-      const icon = L.divIcon({ className: '', html: htmlStr, iconSize: [size, size], iconAnchor: [size/2, size/2] });
+      const icon = L.divIcon({ className: '', html: htmlStr, iconSize: [size+6, size+6], iconAnchor: [(size+6)/2, (size+6)/2] });
       const marker = L.marker([alert.lat, alert.lon], { icon: icon });
 
       let popupHtml = `<div style="text-align: center;">`;
-      popupHtml += `<div style="font-weight: bold; border-bottom: 1px dashed ${colorAlert}; margin-bottom: 5px; padding-bottom: 3px; color: ${colorAlert};">USER REPORT</div>`;
+      popupHtml += `<div style="font-weight: bold; border-bottom: 2px dotted ${colorAlert}; margin-bottom: 5px; padding-bottom: 3px; color: ${colorAlert};">ユーザーレポート</div>`;
       
       if (alert.image_url) {
-        popupHtml += `<img src="${alert.image_url}" alt="Alert" style="width: 100%; height: auto; border-radius: 4px; margin-bottom: 4px;" />`;
+        popupHtml += `<img src="${alert.image_url}" alt="Alert" style="width: 100%; height: auto; border-radius: 8px; margin-bottom: 4px;" />`;
       }
       
-      popupHtml += `<div style="font-size: 11px; line-height: 1.4; text-align: left; margin-bottom: 4px; width: 140px; max-height: 70px; overflow-y: auto; padding-right: 4px; border: 1px solid rgba(255,42,133,0.2); background: rgba(0,0,0,0.5);">${alert.comment || 'NO COMMENT'}</div>`;
-      popupHtml += `<div style="font-size: 9px; margin-top: 4px; opacity: 0.7;">${new Date(alert.created_at).toLocaleString('ja-JP')}</div>`;
+      popupHtml += `<div style="font-size: 12px; line-height: 1.5; text-align: left; margin-bottom: 4px; width: 140px; max-height: 70px; overflow-y: auto; padding: 6px; background: #fdf2f6; border-radius: 6px;">${alert.comment || 'コメントなし'}</div>`;
+      popupHtml += `<div style="font-size: 10px; margin-top: 4px; color: #888;">${new Date(alert.created_at).toLocaleString('ja-JP')}</div>`;
       popupHtml += `</div>`;
 
-      marker.bindPopup(popupHtml, { className: 'cyber-popup' }).addTo(alertLayerGroup);
+      marker.bindPopup(popupHtml, { className: 'ui-popup' }).addTo(alertLayerGroup);
     });
   }
 
-  // TRACKING DEVICE は CLICK (bindPopup) 
-  // 閾値に応じた色分け と形状変更、24時間判定を追加
   function updateDeviceDisplay() {
     deviceLayerGroup.clearLayers();
     if (!chkDevice.checked) return;
 
-    const isCyber = document.body.classList.contains('cyber-mode');
-
     currentDevices.forEach(d => {
       if (d.lat == null || d.lon == null) return;
       
-      // 温度による色の判定
       let colorDevice = '';
       if (d.temperature >= 31) {
-        colorDevice = '#ff0000'; // 危険 (31℃以上)
+        colorDevice = '#FF5252'; // 赤
       } else if (d.temperature >= 28) {
-        colorDevice = '#ff9900'; // 厳重警戒 (28～31℃)
+        colorDevice = '#FFB74D'; // オレンジ
       } else if (d.temperature >= 25) {
-        colorDevice = '#ffff00'; // 警戒 (25～28℃)
+        colorDevice = '#FFF176'; // 黄
       } else {
-        colorDevice = '#66ccff'; // 注意 (25℃未満)
+        colorDevice = '#64B5F6'; // 水色
       }
 
       const isOld = isOlderThan24Hours(d.jst);
-      const bgColor = isOld ? 'transparent' : (isCyber ? '#000' : colorDevice);
+      const bgColor = isOld ? '#ffffff' : colorDevice;
       
-      // 形状を正方形に変更
       const size = 16;
-      const htmlStr = isCyber
-        ? `<div style="width:${size}px; height:${size}px; background:${bgColor}; border:2px solid ${colorDevice}; box-shadow:0 0 10px ${colorDevice};"></div>`
-        : `<div style="width:${size}px; height:${size}px; background:${bgColor}; border:2px solid ${isOld ? colorDevice : '#fff'}; box-shadow:0 0 5px rgba(0,0,0,0.5);"></div>`;
+      const htmlStr = `<div style="width:${size}px; height:${size}px; background:${bgColor}; border:3px solid ${isOld ? colorDevice : '#fff'}; border-radius:50%; box-shadow:0 2px 6px rgba(0,0,0,0.3);"></div>`;
 
-      const icon = L.divIcon({ className: '', html: htmlStr, iconSize: [size, size], iconAnchor: [size/2, size/2] });
+      const icon = L.divIcon({ className: '', html: htmlStr, iconSize: [size+6, size+6], iconAnchor: [(size+6)/2, (size+6)/2] });
       const marker = L.marker([d.lat, d.lon], { icon: icon });
       
-      const popupHtml = `<div style="width: 150px; font-size: 11px; line-height: 1.5; text-align: left; max-height: 80px; overflow-y: auto; padding-right: 4px;">` +
-        `<strong style="color: ${colorDevice}; font-size: 12px; display: block; border-bottom: 1px dashed ${colorDevice}; margin-bottom: 3px; padding-bottom: 2px;">${d.device_id}</strong>` +
-        `NAME: ${d.device_name || 'UNKNOWN'}<br>` +
-        `STAT: ${d.status}<br>` +
-        `TEMP: ${d.temperature} C<br>` +
-        `FIXD: ${d.is_fixed ? 'YES' : 'NO'}<br>` +
-        `TIME: ${new Date(d.jst).toLocaleTimeString()}` +
+      const popupHtml = `<div style="width: 160px; font-size: 12px; line-height: 1.6; text-align: left; max-height: 100px; overflow-y: auto; padding: 4px;">` +
+        `<strong style="color: ${colorDevice === '#FFF176' ? '#FBC02D' : colorDevice}; font-size: 13px; display: block; border-bottom: 2px solid #f0f0f0; margin-bottom: 4px; padding-bottom: 2px;">ID: ${d.device_id}</strong>` +
+        `名前: ${d.device_name || '不明'}<br>` +
+        `状態: ${d.status}<br>` +
+        `温度: ${d.temperature} ℃<br>` +
+        `時刻: ${new Date(d.jst).toLocaleTimeString()}` +
         `</div>`;
 
-      marker.bindPopup(popupHtml, { className: 'cyber-popup' }).addTo(deviceLayerGroup);
+      marker.bindPopup(popupHtml, { className: 'ui-popup' }).addTo(deviceLayerGroup);
     });
   }
 
   function renderStartEnd(startPt, endPt) {
-    const isCyber = document.body.classList.contains('cyber-mode');
-    const colorStart = isCyber ? 'var(--neon-cyan)' : '#16a085';
-    const colorEnd = isCyber ? 'var(--neon-magenta)' : '#d63031';
+    const colorStart = '#4DB6AC';
+    const colorEnd = '#FF8A65';
 
     const createIcon = (t, c) => {
-      const htmlStr = isCyber
-        ? `<div style="background:#000; color:${c}; font-size:12px; font-weight:bold; width:22px; height:22px; line-height:20px; text-align:center; border:2px solid ${c}; box-shadow:0 0 10px ${c};">${t}</div>`
-        : `<div style="background:${c}; color:white; font-size:12px; font-weight:bold; width:24px; height:24px; line-height:24px; text-align:center; border-radius:50%; border:2px solid white; box-shadow:0 3px 6px rgba(0,0,0,0.4);">${t}</div>`;
-      return L.divIcon({ className: '', html: htmlStr, iconSize: [26, 26], iconAnchor: [13, 13] });
+      const htmlStr = `<div style="background:${c}; color:white; font-size:13px; font-weight:bold; width:26px; height:26px; line-height:26px; text-align:center; border-radius:50%; border:3px solid white; box-shadow:0 3px 8px rgba(0,0,0,0.3);">${t}</div>`;
+      return L.divIcon({ className: '', html: htmlStr, iconSize: [32, 32], iconAnchor: [16, 16] });
     };
     L.marker(startPt, { icon: createIcon('S', colorStart) }).addTo(dataLayerGroup);
     L.marker(endPt, { icon: createIcon('G', colorEnd) }).addTo(dataLayerGroup);
   }
 
-  // 初期データ読み込み
   fetchTripList();
   fetchDeviceStatus();
   fetchStandaloneAlerts(); 
