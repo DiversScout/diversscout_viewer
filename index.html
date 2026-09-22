@@ -184,9 +184,68 @@
     .cyber-popup .leaflet-popup-close-button {
       color: var(--neon-cyan) !important;
     }
+
+    /* スプラッシュスクリーン用スタイル */
+    #splash-screen {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100vw;
+      height: 100vh;
+      background-color: #05050a; /* サイバー感のある黒ベース */
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      z-index: 99999;
+      transition: opacity 0.8s ease-out, visibility 0.8s ease-out;
+    }
+    #splash-screen::after {
+      content: ""; position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+      background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.3) 50%);
+      background-size: 100% 4px;
+      pointer-events: none;
+    }
+    #splash-screen img {
+      max-width: 250px;
+      max-height: 250px;
+      margin-bottom: 20px;
+      position: relative;
+      z-index: 2;
+    }
+    #splash-screen h1 {
+      font-family: 'Orbitron', sans-serif;
+      font-size: 28px;
+      color: var(--neon-cyan);
+      margin: 0;
+      letter-spacing: 0.1em;
+      text-shadow: 0 0 15px var(--neon-cyan);
+      position: relative;
+      z-index: 2;
+    }
+    #splash-screen p {
+      font-family: 'Orbitron', sans-serif;
+      font-size: 14px;
+      color: #fff;
+      margin: 10px 0 0 0;
+      letter-spacing: 0.2em;
+      position: relative;
+      z-index: 2;
+    }
+    .splash-hidden {
+      opacity: 0;
+      visibility: hidden;
+    }
   </style>
 </head>
 <body>
+
+<!-- スプラッシュスクリーン -->
+<div id="splash-screen">
+  <img src="/image/splush.png" alt="Splash Image">
+  <h1>DiversScout Viewer</h1>
+  <p>v0.1b</p>
+</div>
 
 <div id="map"></div>
 <div id="cyber-effects"></div>
@@ -303,6 +362,13 @@
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
 <script>
+  // スプラッシュスクリーンの非表示制御
+  window.addEventListener('load', () => {
+    setTimeout(() => {
+      document.getElementById('splash-screen').classList.add('splash-hidden');
+    }, 2000); // 2秒後にフェードアウトを開始
+  });
+
   function toggleSection(contentId, btnId) {
     const content = document.getElementById(contentId);
     const btn = document.getElementById(btnId);
