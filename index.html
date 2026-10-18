@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>DiversScout Viewer v0.1e</title>
+  <title>DiversScout Viewer v0.1b</title>
   
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
   <!-- 丸みのあるポップなフォントを読み込み -->
@@ -18,12 +18,6 @@
       --color-steep: #BA68C8;   /* パステルパープル */
       --color-device: #64B5F6;  /* スカイブルー */
       --color-alert: #F06292;   /* パステルピンク */
-      
-      /* 縁石（車椅子通行可否）用カラー */
-      --color-kerb-ok: #66BB6A;      /* 通れる：グリーン */
-      --color-kerb-caution: #FFA726; /* 補助が必要かも：アンバー/オレンジ */
-      --color-kerb-ng: #EF5350;      /* 通れない：レッド */
-      --color-kerb-unknown: #BDBDBD; /* 詳細不明：グレー */
       
       --bg-panel: rgba(255, 255, 255, 0.95);
       --text-main: #555555;
@@ -88,15 +82,11 @@
     #control-content::-webkit-scrollbar { width: 6px; }
     #control-content::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 3px; }
 
-    #legend-panel { position: absolute; bottom: 25px; right: 20px; width: 230px; }
+    #legend-panel { position: absolute; bottom: 25px; right: 20px; width: 220px; }
     #legend-content { font-size: 12px; color: var(--text-main); line-height: 22px; }
-    #legend-content i.circle-icon { 
-      width: 12px; height: 12px; float: left; margin-top: 3px; margin-right: 8px; 
+    #legend-content i { 
+      width: 12px; height: 12px; float: left; margin-top: 5px; margin-right: 8px; 
       border-radius: 50%; border: 2px solid #fff; box-shadow: 0 1px 3px rgba(0,0,0,0.2);
-    }
-    #legend-content i.square-icon { 
-      width: 12px; height: 12px; float: left; margin-top: 3px; margin-right: 8px; 
-      border-radius: 3px; border: 2px solid #fff; box-shadow: 0 1px 3px rgba(0,0,0,0.2);
     }
 
     .layer-btn-group { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 6px; }
@@ -147,27 +137,7 @@
     }
     .slider-val { font-size: 11px; min-width: 45px; text-align: right; color: var(--text-muted); font-weight: bold; }
     #status-msg { font-size: 11px; font-weight: bold; color: var(--color-device); margin-top: 2px;}
-    
-    .kerb-status-row { display: flex; justify-content: space-between; align-items: center; margin-top: 4px; gap: 4px; }
-    #kerb-status-msg { font-size: 10px; font-weight: bold; color: var(--text-muted); line-height: 1.3; flex: 1; }
-    .retry-btn {
-      font-size: 10px; padding: 4px 10px; border-radius: 4px; border: 1px solid var(--border-light);
-      background: #fff; color: var(--text-main); cursor: pointer; font-family: inherit; font-weight: bold;
-      white-space: nowrap;
-    }
-    .retry-btn:hover:not(:disabled) { background: #f0f4f8; }
-    .retry-btn:disabled { background: #e2e8f0; color: #aaa; cursor: not-allowed; border-color: #cbd5e1; }
-    
     .color-dot { width: 10px; height: 10px; display: inline-block; border-radius: 50%; }
-    .color-square { width: 10px; height: 10px; display: inline-block; border-radius: 2px; }
-
-    /* 縁石サブ凡例（コントロールパネル内） */
-    .kerb-sub-legend {
-      display: grid; grid-template-columns: 1fr 1fr; gap: 4px;
-      font-size: 10px; color: var(--text-main); margin-top: 4px; padding-top: 4px;
-      border-top: 1px dashed var(--border-light);
-    }
-    .kerb-sub-item { display: flex; align-items: center; gap: 4px; }
 
     /* Leaflet ツールチップ (HOVER用 - 丸みのあるデザイン) */
     .leaflet-tooltip { 
@@ -240,7 +210,7 @@
 <div id="splash-screen">
   <img src="./images/splush.png" alt="Splash Image">
   <h1>DiversScout Viewer</h1>
-  <p>v0.1e</p>
+  <p>v0.1b</p>
 </div>
 
 <div id="map"></div>
@@ -313,31 +283,6 @@
         </div>
       </div>
     </div>
-
-    <!-- 縁石情報（手動取得・デフォルトオフ） -->
-    <div class="panel-section">
-      <h3>縁石情報 (OSM手動取得)</h3>
-      <div class="control-group" style="color: var(--color-kerb-ok);">
-        <div class="control-header">
-          <label class="control-label" style="color: var(--text-main);">
-            <span class="color-square" style="background: var(--color-kerb-ok);"></span>縁石マーカー表示
-          </label>
-          <!-- デフォルトオフに変更 -->
-          <label class="ui-checkbox"><input type="checkbox" id="chk-kerb"><span class="checkmark"></span></label>
-        </div>
-        <div class="kerb-sub-legend">
-          <div class="kerb-sub-item"><span class="color-square" style="background: var(--color-kerb-ok);"></span>通れる</div>
-          <div class="kerb-sub-item"><span class="color-square" style="background: var(--color-kerb-caution);"></span>補助が必要かも</div>
-          <div class="kerb-sub-item"><span class="color-square" style="background: var(--color-kerb-ng);"></span>通れない</div>
-          <div class="kerb-sub-item"><span class="color-square" style="background: var(--color-kerb-unknown);"></span>詳細不明</div>
-        </div>
-        <div class="kerb-status-row">
-          <span id="kerb-status-msg">※最大まで拡大してください</span>
-          <!-- 手動取得ボタン（初期状態は無効） -->
-          <button type="button" id="kerb-fetch-btn" class="retry-btn" onclick="fetchKerbsManual()" disabled>取得する</button>
-        </div>
-      </div>
-    </div>
     
     <div class="panel-section">
       <h3>ユーザーレポート</h3>
@@ -368,17 +313,12 @@
     <button id="btn-legend" class="ui-btn">▼ 閉じる</button>
   </div>
   <div id="legend-content" style="margin-top: 10px; padding-top: 10px; border-top: 2px dashed #e0e0e0;">
-    <i class="circle-icon" style="background: var(--color-route);"></i>走行ルート<br>
-    <i class="circle-icon" style="background: var(--color-step);"></i>段差ショック<br>
-    <i class="circle-icon" style="background: var(--color-wheelie);"></i>ウィリー状態<br>
-    <i class="circle-icon" style="background: var(--color-steep);"></i>急傾斜<br>
-    <i class="circle-icon" style="background: var(--color-alert);"></i>ユーザーレポート<br>
-    <i class="circle-icon" style="background: var(--color-device);"></i>トラッキングデバイス<br>
-    <div style="margin: 6px 0 4px 0; border-top: 1px dashed #e0e0e0; padding-top: 4px; font-weight: bold; font-size: 11px; color: #666;">縁石 (車椅子判定)</div>
-    <i class="square-icon" style="background: var(--color-kerb-ok);"></i>縁石：通れる<br>
-    <i class="square-icon" style="background: var(--color-kerb-caution);"></i>縁石：補助が必要かも<br>
-    <i class="square-icon" style="background: var(--color-kerb-ng);"></i>縁石：通れない<br>
-    <i class="square-icon" style="background: var(--color-kerb-unknown);"></i>縁石：詳細不明<br>
+    <i style="background: var(--color-route);"></i>走行ルート<br>
+    <i style="background: var(--color-step);"></i>段差ショック<br>
+    <i style="background: var(--color-wheelie);"></i>ウィリー状態<br>
+    <i style="background: var(--color-steep);"></i>急傾斜<br>
+    <i style="background: var(--color-alert);"></i>ユーザーレポート<br>
+    <i style="background: var(--color-device);"></i>トラッキングデバイス<br>
   </div>
 </div>
 
@@ -420,8 +360,11 @@
   const supabaseClient = (SUPABASE_URL.startsWith('__')) 
     ? null : window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
+  // 初期化時に attributionControl: false を指定し、デフォルトの右下表示を無効化
   const map = L.map('map', { zoomControl: false, attributionControl: false }).setView([33.883, 130.875], 15);
   L.control.zoom({ position: 'topright' }).addTo(map);
+  
+  // コピーライト（帰属表示）を左下に配置して、凡例パネルとの重なりを回避
   L.control.attribution({ position: 'bottomleft' }).addTo(map);
   
   const layers = {
@@ -435,7 +378,6 @@
   let currentTripLatLngs = null; 
 
   const dataLayerGroup = L.layerGroup().addTo(map);
-  const kerbLayerGroup = L.layerGroup().addTo(map);
   const barrierLayerGroup = L.layerGroup().addTo(map);
   const alertLayerGroup = L.layerGroup().addTo(map); 
   const deviceLayerGroup = L.layerGroup().addTo(map);
@@ -443,37 +385,6 @@
   let currentBarriers = [];
   let currentDevices = [];
   let currentStandaloneAlerts = []; 
-  let currentKerbs = [];
-
-  // ==========================================
-  // 縁石取得の設定（手動ボタン・最大ズーム限定）
-  // ==========================================
-  const OVERPASS_ENDPOINTS = [
-    'https://overpass-api.de/api/interpreter',
-    'https://maps.mail.ru/osm/tools/overpass/api/interpreter'
-  ];
-  let preferredEndpointIndex = 0;
-  let kerbAbortController = null;
-
-  function getRequiredMinZoomForKerb() {
-    const maxZ = map.getMaxZoom() || 19;
-    return Math.min(18, maxZ);
-  }
-
-  // ズームレベルに応じて「取得する」ボタンの有効/無効を更新
-  function updateKerbButtonState() {
-    const currentZoom = map.getZoom();
-    const minRequired = getRequiredMinZoomForKerb();
-    const fetchBtn = document.getElementById('kerb-fetch-btn');
-
-    if (currentZoom < minRequired) {
-      fetchBtn.disabled = true;
-      kerbStatusMsg.innerText = `※最大拡大時(Zoom ${minRequired}〜)のみ取得可能 (現在:${currentZoom})`;
-    } else {
-      fetchBtn.disabled = false;
-      kerbStatusMsg.innerText = '準備完了（ボタンを押して取得）';
-    }
-  }
 
   function redrawAllMapElements() {
     dataLayerGroup.clearLayers();
@@ -481,6 +392,7 @@
     alertLayerGroup.clearLayers();
     deviceLayerGroup.clearLayers();
 
+    // 1. ルート線 (柔らかいデザイン)
     if (currentTripLatLngs && currentTripLatLngs.length > 0) {
       L.polyline(currentTripLatLngs, { 
         color: 'var(--color-route)', weight: 7, opacity: 0.8, lineCap: 'round', lineJoin: 'round'
@@ -489,10 +401,10 @@
       renderStartEnd(currentTripLatLngs[0], currentTripLatLngs[currentTripLatLngs.length - 1]);
     }
     
+    // 2. マーカー類を描画
     updateBarrierDisplay();
     updateAlertDisplay(); 
     updateDeviceDisplay();
-    updateKerbDisplay();
   }
 
   window.switchMapLayer = function(layerKey, btnElem) {
@@ -507,7 +419,6 @@
   const modeSelect = document.getElementById('mode-select');
   const dataTypeSelect = document.getElementById('datatype-select');
   const statusMsg = document.getElementById('status-msg');
-  const kerbStatusMsg = document.getElementById('kerb-status-msg');
 
   const chkStep = document.getElementById('chk-step');
   const stepSlider = document.getElementById('step-slider');
@@ -521,7 +432,6 @@
   const steepSlider = document.getElementById('steep-slider');
   const steepValText = document.getElementById('steep-val-text');
 
-  const chkKerb = document.getElementById('chk-kerb');
   const chkAlert = document.getElementById('chk-alert'); 
   const chkDevice = document.getElementById('chk-device');
 
@@ -529,26 +439,12 @@
   dataTypeSelect.addEventListener('change', loadData);
 
   [chkStep, chkWheelie, chkSteep].forEach(chk => { chk.addEventListener('change', updateBarrierDisplay); });
-  
-  chkKerb.addEventListener('change', () => {
-    if (chkKerb.checked) {
-      updateKerbDisplay();
-    } else {
-      kerbLayerGroup.clearLayers();
-    }
-  });
-
   chkAlert.addEventListener('change', updateAlertDisplay);
   chkDevice.addEventListener('change', updateDeviceDisplay);
 
   stepSlider.addEventListener('input', function() { stepValText.innerText = parseFloat(this.value).toFixed(1); updateBarrierDisplay(); });
   wheelieSlider.addEventListener('input', function() { wheelieValText.innerText = parseInt(this.value, 10); updateBarrierDisplay(); });
   steepSlider.addEventListener('input', function() { steepValText.innerText = parseInt(this.value, 10); updateBarrierDisplay(); });
-
-  // マップ移動・ズーム時は自動通信せず、ボタンの状態切り替えのみ行う
-  map.on('moveend zoomend', () => {
-    updateKerbButtonState();
-  });
 
   function parsePointGeom(geom) {
     if (!geom) return null;
@@ -560,235 +456,6 @@
     return null;
   }
 
-  // ==========================================
-  // 縁石データ（Overpass API）手動取得・判定ロジック
-  // ==========================================
-  
-  function parseKerbHeightCm(heightStr) {
-    if (heightStr == null || heightStr === '') return null;
-    const str = String(heightStr).trim().toLowerCase();
-    const num = parseFloat(str);
-    if (isNaN(num)) return null;
-
-    if (str.includes('mm')) return num / 10;
-    if (str.includes('cm')) return num;
-    if (str.includes('m') && !str.includes('cm') && !str.includes('mm')) return num * 100;
-    
-    return (num < 1.0 && num > 0) ? num * 100 : num;
-  }
-
-  function evaluateKerbAccessibility(tags) {
-    const wc = tags['wheelchair'];
-    const kerbType = tags['kerb'];
-    const heightRaw = tags['kerb:height'] ?? tags['height'];
-    const heightCm = parseKerbHeightCm(heightRaw);
-
-    let status = 'unknown';
-    let statusLabel = '詳細不明（未分類）';
-    let symbol = '？';
-    let color = '#BDBDBD';
-
-    if (wc === 'yes' || wc === 'designated') {
-      status = 'passable';
-    } else if (wc === 'limited') {
-      status = 'caution';
-    } else if (wc === 'no') {
-      status = 'impassable';
-    } else if (heightCm !== null) {
-      if (heightCm <= 2.0) {
-        status = 'passable';
-      } else if (heightCm <= 10.0) {
-        status = 'caution';
-      } else {
-        status = 'impassable';
-      }
-    } else if (kerbType) {
-      if (kerbType === 'flush' || kerbType === 'no') {
-        status = 'passable';
-      } else if (kerbType === 'lowered' || kerbType === 'rolled') {
-        status = 'caution';
-      } else if (kerbType === 'raised' || kerbType === 'yes') {
-        status = (kerbType === 'raised') ? 'impassable' : 'caution';
-      }
-    }
-
-    if (status === 'passable') {
-      statusLabel = '車椅子で通れる';
-      symbol = '〇';
-      color = '#66BB6A';
-    } else if (status === 'caution') {
-      statusLabel = '補助が必要かも';
-      symbol = '△';
-      color = '#FFA726';
-    } else if (status === 'impassable') {
-      statusLabel = '車椅子では通れない';
-      symbol = '×';
-      color = '#EF5350';
-    }
-
-    const kerbTypeMap = {
-      'flush': '段差なし (flush)',
-      'lowered': '切り下げ (lowered)',
-      'rolled': '丸みあり (rolled)',
-      'raised': '段差あり (raised)',
-      'no': '縁石なし (no)',
-      'yes': '縁石あり (詳細未設定)'
-    };
-    const typeLabel = kerbTypeMap[kerbType] || (kerbType ? kerbType : '未設定');
-    const heightLabel = (heightCm !== null) ? `約 ${Number(heightCm.toFixed(1))} cm (${heightRaw})` : '未計測';
-    const wcLabelMap = { 'yes': '通行可 (yes)', 'limited': '条件付き/要補助 (limited)', 'no': '通行不可 (no)' };
-    const wcLabel = wcLabelMap[wc] || (wc ? wc : '未設定');
-
-    return { status, statusLabel, symbol, color, typeLabel, heightLabel, wcLabel };
-  }
-
-  async function fetchFromOverpassEndpoint(endpointUrl, query, parentSignal, timeoutMs = 12000) {
-    const timeoutController = new AbortController();
-    const timer = setTimeout(() => timeoutController.abort(), timeoutMs);
-
-    const onParentAbort = () => timeoutController.abort();
-    parentSignal.addEventListener('abort', onParentAbort, { once: true });
-
-    try {
-      const url = `${endpointUrl}?data=${encodeURIComponent(query)}`;
-      const response = await fetch(url, {
-        method: 'GET',
-        mode: 'cors',
-        signal: timeoutController.signal
-      });
-      if (!response.ok) {
-        throw new Error(`HTTP ${response.status}`);
-      }
-      return await response.json();
-    } finally {
-      clearTimeout(timer);
-      parentSignal.removeEventListener('abort', onParentAbort);
-    }
-  }
-
-  // ユーザーが「取得する」ボタンを押したときだけ実行
-  window.fetchKerbsManual = async function() {
-    const currentZoom = map.getZoom();
-    const minRequired = getRequiredMinZoomForKerb();
-
-    if (currentZoom < minRequired) {
-      alert(`地図をもう少し拡大してください（現在のズーム: ${currentZoom} / 必要: ${minRequired}以上）`);
-      return;
-    }
-
-    if (kerbAbortController) {
-      kerbAbortController.abort();
-    }
-    kerbAbortController = new AbortController();
-    const currentSignal = kerbAbortController.signal;
-
-    const bounds = map.getBounds();
-    const s = bounds.getSouth().toFixed(5);
-    const w = bounds.getWest().toFixed(5);
-    const n = bounds.getNorth().toFixed(5);
-    const e = bounds.getEast().toFixed(5);
-
-    const overpassQuery = `[out:json][timeout:15];node["barrier"="kerb"](${s},${w},${n},${e});out 200;`;
-
-    kerbStatusMsg.innerText = '縁石データを取得中...';
-
-    for (let i = 0; i < OVERPASS_ENDPOINTS.length; i++) {
-      if (currentSignal.aborted) return;
-
-      const idx = (preferredEndpointIndex + i) % OVERPASS_ENDPOINTS.length;
-      const endpoint = OVERPASS_ENDPOINTS[idx];
-
-      try {
-        const json = await fetchFromOverpassEndpoint(endpoint, overpassQuery, currentSignal, 12000);
-        if (currentSignal.aborted) return;
-
-        preferredEndpointIndex = idx;
-
-        currentKerbs = (json.elements || []).map(el => ({
-          id: el.id,
-          lat: el.lat,
-          lon: el.lon,
-          tags: el.tags || {}
-        }));
-
-        // 取得成功したらチェックボックスを自動でONにする
-        chkKerb.checked = true;
-        updateKerbDisplay();
-        kerbStatusMsg.innerText = `取得成功: ${currentKerbs.length} 件`;
-        return;
-      } catch (err) {
-        if (currentSignal.aborted) return;
-        console.warn(`Overpass query failed (${endpoint}):`, err.message || err);
-      }
-    }
-
-    if (!currentSignal.aborted) {
-      kerbStatusMsg.innerText = '取得に失敗しました (再試行してください)';
-    }
-  };
-
-  function updateKerbDisplay() {
-    kerbLayerGroup.clearLayers();
-    if (!chkKerb.checked) return;
-
-    currentKerbs.forEach(k => {
-      if (k.lat == null || k.lon == null) return;
-
-      const evalInfo = evaluateKerbAccessibility(k.tags);
-      const size = 18;
-
-      const htmlStr = `
-        <div style="
-          width:${size}px; height:${size}px; 
-          background:${evalInfo.color}; 
-          color:#fff; font-size:10px; font-weight:900; line-height:${size}px; text-align:center;
-          border:2px solid #fff; border-radius:4px; 
-          box-shadow:0 2px 5px rgba(0,0,0,0.3);
-        ">${evalInfo.symbol}</div>
-      `;
-
-      const icon = L.divIcon({
-        className: '',
-        html: htmlStr,
-        iconSize: [size + 4, size + 4],
-        iconAnchor: [(size + 4) / 2, (size + 4) / 2]
-      });
-
-      const marker = L.marker([k.lat, k.lon], { icon: icon });
-
-      const tooltipHtml = `
-        <div style="text-align: center; font-size: 11px;">
-          <span style="color:${evalInfo.color};">■</span> <strong>${evalInfo.statusLabel}</strong><br>
-          <span style="font-size:10px; color:#666;">種類: ${evalInfo.typeLabel}</span>
-        </div>
-      `;
-      marker.bindTooltip(tooltipHtml, { direction: 'top', offset: [0, -10] });
-
-      let popupHtml = `<div style="width: 185px; font-size: 12px; line-height: 1.6; text-align: left; padding: 2px;">`;
-      popupHtml += `<div style="font-weight: bold; font-size: 13px; color: ${evalInfo.color}; border-bottom: 2px dotted ${evalInfo.color}; margin-bottom: 6px; padding-bottom: 3px; text-align: center;">`;
-      popupHtml += `${evalInfo.symbol} ${evalInfo.statusLabel}</div>`;
-      popupHtml += `<strong>縁石タイプ:</strong> ${evalInfo.typeLabel}<br>`;
-      popupHtml += `<strong>段差の高さ:</strong> ${evalInfo.heightLabel}<br>`;
-      popupHtml += `<strong>車椅子タグ:</strong> ${evalInfo.wcLabel}<br>`;
-      if (k.tags['tactile_paving']) {
-        popupHtml += `<strong>点字ブロック:</strong> ${k.tags['tactile_paving']}<br>`;
-      }
-      if (k.tags['note'] || k.tags['description']) {
-        const noteText = k.tags['note'] || k.tags['description'];
-        popupHtml += `<div style="margin-top:4px; padding:4px; background:#f8f9fa; border-radius:4px; font-size:11px;">${noteText}</div>`;
-      }
-      popupHtml += `<div style="font-size: 10px; margin-top: 6px; text-align: right;">`;
-      popupHtml += `<a href="https://www.openstreetmap.org/node/${k.id}" target="_blank" rel="noopener" style="color: #64B5F6; text-decoration: none;">OSM Node #${k.id} ↗</a>`;
-      popupHtml += `</div></div>`;
-
-      marker.bindPopup(popupHtml, { className: 'ui-popup' });
-      marker.addTo(kerbLayerGroup);
-    });
-  }
-
-  // ==========================================
-  // 既存のSupabaseデータ取得・描画処理
-  // ==========================================
   async function fetchTripList() {
     if (!supabaseClient) return;
     try {
@@ -801,11 +468,9 @@
           opt.textContent = `ID:${t.trip_id} | ${t.event_name ? t.event_name : t.title}`;
           modeSelect.appendChild(opt);
         });
-        await loadData();
+        loadData();
       }
-    } catch (err) {
-      console.error(err);
-    }
+    } catch (err) { console.error(err); }
   }
 
   async function fetchStandaloneAlerts() {
@@ -897,6 +562,7 @@
           let marker;
           let tooltipHtml = '';
 
+          // イラストテイストの可愛い丸型マーカー
           const htmlStr = `<div style="width:${size}px; height:${size}px; background:${color}; border:2px solid #fff; border-radius:50%; box-shadow:0 2px 6px rgba(0,0,0,0.25);"></div>`;
           const icon = L.divIcon({ className: '', html: htmlStr, iconSize: [size, size], iconAnchor: [size/2, size/2] });
           marker = L.marker(coords, { icon: icon });
@@ -909,6 +575,7 @@
               if (ann.image_url) {
                 tooltipHtml += `<img src="${ann.image_url}" alt="Alert" style="width: 100%; height: auto; border-radius: 8px; margin-bottom: 4px;" />`;
               }
+              // アノテーション内のコメントには個別に折り返しを指定
               tooltipHtml += `<div style="font-size: 12px; line-height: 1.5; text-align: left; width: 140px; max-height: 70px; overflow-y: auto; padding: 4px; border-radius: 6px; background: #f8f9fa; white-space: normal; word-break: break-word;">${ann.comment || 'コメントなし'}</div>`;
             });
             tooltipHtml += `</div>`;
@@ -971,13 +638,13 @@
       
       let colorDevice = '';
       if (d.temperature >= 31) {
-        colorDevice = '#FF5252';
+        colorDevice = '#FF5252'; // 赤
       } else if (d.temperature >= 28) {
-        colorDevice = '#FFB74D';
+        colorDevice = '#FFB74D'; // オレンジ
       } else if (d.temperature >= 25) {
-        colorDevice = '#FFF176';
+        colorDevice = '#FFF176'; // 黄
       } else {
-        colorDevice = '#64B5F6';
+        colorDevice = '#64B5F6'; // 水色
       }
 
       const isOld = isOlderThan24Hours(d.jst);
@@ -1013,11 +680,9 @@
     L.marker(endPt, { icon: createIcon('G', colorEnd) }).addTo(dataLayerGroup);
   }
 
-  // 初期ロード処理（自動通信は行わず、ボタンの状態のみ初期化）
   fetchTripList();
   fetchDeviceStatus();
-  fetchStandaloneAlerts();
-  updateKerbButtonState();
+  fetchStandaloneAlerts(); 
 </script>
 </body>
 </html>
