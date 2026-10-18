@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>DiversScout Viewer v0.1c</title>
+  <title>DiversScout Viewer v0.1d</title>
   
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
   <!-- 丸みのあるポップなフォントを読み込み -->
@@ -239,7 +239,7 @@
 <div id="splash-screen">
   <img src="./images/splush.png" alt="Splash Image">
   <h1>DiversScout Viewer</h1>
-  <p>v0.1c</p>
+  <p>v0.1d</p>
 </div>
 
 <div id="map"></div>
@@ -313,7 +313,7 @@
       </div>
     </div>
 
-    <!-- 縁石情報（最小スケール限定・半径150m軽量クエリ） -->
+    <!-- 縁石情報（最小スケール限定・極小BBox高速クエリ） -->
     <div class="panel-section">
       <h3>縁石情報 (最大拡大時のみ)</h3>
       <div class="control-group" style="color: var(--color-kerb-ok);">
@@ -330,7 +330,7 @@
           <div class="kerb-sub-item"><span class="color-square" style="background: var(--color-kerb-unknown);"></span>詳細不明</div>
         </div>
         <div class="kerb-status-row">
-          <span id="kerb-status-msg">※最大まで拡大(Zoom 18〜)すると中央付近を取得します</span>
+          <span id="kerb-status-msg">※最大まで拡大(Zoom 18〜)すると取得します</span>
           <button type="button" class="retry-btn" onclick="fetchKerbsInBounds(true)">取得</button>
         </div>
       </div>
@@ -417,7 +417,7 @@
   const supabaseClient = (SUPABASE_URL.startsWith('__')) 
     ? null : window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
-  // 初期表示は Zoom 15 (広域のため初期状態では縁石通信は発生しない)
+  // 初期表示は Zoom 15
   const map = L.map('map', { zoomControl: false, attributionControl: false }).setView([33.883, 130.875], 15);
   L.control.zoom({ position: 'topright' }).addTo(map);
   L.control.attribution({ position: 'bottomleft' }).addTo(map);
@@ -444,25 +444,24 @@
   let currentKerbs = [];
 
   // ==========================================
-  // 縁石取得の軽量化設定（最小スケール限定 ＆ 半径150m制限）
+  // 縁石取得の高速化設定（空間インデックスが効く極小BBox ＋ CORS安定サーバー）
   // ==========================================
-  const KERB_RADIUS_METERS = 150; // 画面全体のBBoxではなく、中心から半径150mのみ取得して超軽量化
-  const KERB_MAX_RESULTS = 100;   // 最大100件までに制限
+  // 中心から上下左右 0.0012度（約250m四方）の極小BBoxのみを検索（aroundフィルタは激重なため不使用）
+  const KERB_BBOX_DELTA = 0.0012;
+  const KERB_MAX_RESULTS = 100;
+  // CORSヘッダー（Access-Control-Allow-Origin: *）が安定して付与される2大公式エンドポイントに厳選
   const OVERPASS_ENDPOINTS = [
-    'https://overpass.kumi.systems/api/interpreter',
-    'https://maps.mail.ru/osm/tools/overpass/api/interpreter',
-    'https://overpass.private.coffee/api/interpreter',
-    'https://overpass-api.de/api/interpreter'
+    'https://overpass-api.de/api/interpreter',
+    'https://maps.mail.ru/osm/tools/overpass/api/interpreter'
   ];
   let preferredEndpointIndex = 0;
   let kerbFetchTimer = null;
   let kerbAbortController = null;
-  let lastFetchedCenter = null; // 前回取得した中心座標
+  let lastFetchedCenter = null;
 
   // 最小スケール（最大ズームレベル付近）かどうかを判定
   function getRequiredMinZoomForKerb() {
     const maxZ = map.getMaxZoom() || 19;
-    // 最大ズームが19(OSM)や18(地理院)なら18以上、17(地形図)なら17の時だけ許可
     return Math.min(18, maxZ);
   }
 
@@ -544,7 +543,6 @@
     const currentZoom = map.getZoom();
     const minRequired = getRequiredMinZoomForKerb();
 
-    // 最小スケールに達していない場合は即座にマーカーを消して待機メッセージを表示（API通信は一切しない）
     if (currentZoom < minRequired) {
       if (kerbAbortController) kerbAbortController.abort();
       kerbLayerGroup.clearLayers();
@@ -554,7 +552,7 @@
 
     kerbFetchTimer = setTimeout(() => {
       fetchKerbsInBounds(false);
-    }, 600);
+    }, 700);
   });
 
   function parsePointGeom(geom) {
@@ -649,7 +647,8 @@
     return { status, statusLabel, symbol, color, typeLabel, heightLabel, wcLabel };
   }
 
-  async function fetchFromOverpassEndpoint(endpointUrl, query, parentSignal, timeoutMs = 6000) {
+  // CORSプリフライト(OPTIONS)を発生させないシンプルなGETリクエスト
+  async function fetchFromOverpassEndpoint(endpointUrl, query, parentSignal, timeoutMs = 12000) {
     const timeoutController = new AbortController();
     const timer = setTimeout(() => timeoutController.abort(), timeoutMs);
 
@@ -657,10 +656,10 @@
     parentSignal.addEventListener('abort', onParentAbort, { once: true });
 
     try {
-      const response = await fetch(endpointUrl, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8' },
-        body: 'data=' + encodeURIComponent(query),
+      const url = `${endpointUrl}?data=${encodeURIComponent(query)}`;
+      const response = await fetch(url, {
+        method: 'GET',
+        mode: 'cors',
         signal: timeoutController.signal
       });
       if (!response.ok) {
@@ -679,7 +678,7 @@
     const currentZoom = map.getZoom();
     const minRequired = getRequiredMinZoomForKerb();
 
-    // 最小スケール未満なら絶対にクエリを投げない
+    // 最小スケール未満なら通信しない
     if (currentZoom < minRequired) {
       if (kerbAbortController) kerbAbortController.abort();
       kerbLayerGroup.clearLayers();
@@ -689,8 +688,8 @@
 
     const center = map.getCenter();
 
-    // 前回取得した中心点から50m未満の移動（画面リサイズ等含む）であれば再通信しない
-    if (!forceRefresh && lastFetchedCenter && center.distanceTo(lastFetchedCenter) < 50) {
+    // 前回取得した中心点から60m未満の移動であれば再通信しない
+    if (!forceRefresh && lastFetchedCenter && center.distanceTo(lastFetchedCenter) < 60) {
       updateKerbDisplay();
       return;
     }
@@ -701,13 +700,15 @@
     kerbAbortController = new AbortController();
     const currentSignal = kerbAbortController.signal;
 
-    const lat = center.lat.toFixed(6);
-    const lon = center.lng.toFixed(6);
+    // 空間インデックス(Quadtree)が超高速に効く「極小BBox（約250m四方）」を計算
+    const s = (center.lat - KERB_BBOX_DELTA).toFixed(5);
+    const w = (center.lng - KERB_BBOX_DELTA).toFixed(5);
+    const n = (center.lat + KERB_BBOX_DELTA).toFixed(5);
+    const e = (center.lng + KERB_BBOX_DELTA).toFixed(5);
 
-    // 画面のBBoxではなく「中心から半径150m以内・最大100件・タイムアウト5秒」の超軽量クエリ
-    const overpassQuery = `[out:json][timeout:5];node["barrier"="kerb"](around:${KERB_RADIUS_METERS},${lat},${lon});out ${KERB_MAX_RESULTS};`;
+    const overpassQuery = `[out:json][timeout:10];node["barrier"="kerb"](${s},${w},${n},${e});out ${KERB_MAX_RESULTS};`;
 
-    kerbStatusMsg.innerText = `中央(半径${KERB_RADIUS_METERS}m)の縁石を取得中...`;
+    kerbStatusMsg.innerText = '中央付近の縁石を取得中...';
 
     for (let i = 0; i < OVERPASS_ENDPOINTS.length; i++) {
       if (currentSignal.aborted) return;
@@ -717,10 +718,10 @@
 
       try {
         if (i > 0) {
-          kerbStatusMsg.innerText = `別サーバーへ切替中 (${i + 1}/${OVERPASS_ENDPOINTS.length})...`;
+          kerbStatusMsg.innerText = `予備サーバーで再試行中...`;
         }
 
-        const json = await fetchFromOverpassEndpoint(endpoint, overpassQuery, currentSignal, 6000);
+        const json = await fetchFromOverpassEndpoint(endpoint, overpassQuery, currentSignal, 12000);
         if (currentSignal.aborted) return;
 
         preferredEndpointIndex = idx;
@@ -737,12 +738,12 @@
         return;
       } catch (err) {
         if (currentSignal.aborted) return;
-        console.warn(`Overpass lightweight query failed (${endpoint}):`, err.message || err);
+        console.warn(`Overpass bbox query failed (${endpoint}):`, err.message || err);
       }
     }
 
     if (!currentSignal.aborted) {
-      kerbStatusMsg.innerText = '通信タイムアウト (右の「取得」を押してください)';
+      kerbStatusMsg.innerText = '取得失敗 (少し待って「取得」を押してください)';
     }
   };
 
@@ -809,7 +810,7 @@
     });
 
     if (lastFetchedCenter) {
-      kerbStatusMsg.innerText = `中央(半径${KERB_RADIUS_METERS}m): ${currentKerbs.length} 件の縁石`;
+      kerbStatusMsg.innerText = `中央付近(約250m四方): ${currentKerbs.length} 件の縁石`;
     }
   }
 
@@ -1040,7 +1041,7 @@
     L.marker(endPt, { icon: createIcon('G', colorEnd) }).addTo(dataLayerGroup);
   }
 
-  // 初期ロード処理（初期表示時はZoom 15のためOverpassへの通信は一切行われない）
+  // 初期ロード処理
   fetchTripList();
   fetchDeviceStatus();
   fetchStandaloneAlerts();
