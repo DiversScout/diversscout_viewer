@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>DiversScout Viewer v0.1d</title>
+  <title>DiversScout Viewer v0.1e</title>
   
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
   <!-- 丸みのあるポップなフォントを読み込み -->
@@ -151,11 +151,12 @@
     .kerb-status-row { display: flex; justify-content: space-between; align-items: center; margin-top: 4px; gap: 4px; }
     #kerb-status-msg { font-size: 10px; font-weight: bold; color: var(--text-muted); line-height: 1.3; flex: 1; }
     .retry-btn {
-      font-size: 10px; padding: 3px 8px; border-radius: 4px; border: 1px solid var(--border-light);
+      font-size: 10px; padding: 4px 10px; border-radius: 4px; border: 1px solid var(--border-light);
       background: #fff; color: var(--text-main); cursor: pointer; font-family: inherit; font-weight: bold;
       white-space: nowrap;
     }
-    .retry-btn:hover { background: #f0f4f8; }
+    .retry-btn:hover:not(:disabled) { background: #f0f4f8; }
+    .retry-btn:disabled { background: #e2e8f0; color: #aaa; cursor: not-allowed; border-color: #cbd5e1; }
     
     .color-dot { width: 10px; height: 10px; display: inline-block; border-radius: 50%; }
     .color-square { width: 10px; height: 10px; display: inline-block; border-radius: 2px; }
@@ -239,7 +240,7 @@
 <div id="splash-screen">
   <img src="./images/splush.png" alt="Splash Image">
   <h1>DiversScout Viewer</h1>
-  <p>v0.1d</p>
+  <p>v0.1e</p>
 </div>
 
 <div id="map"></div>
@@ -313,15 +314,16 @@
       </div>
     </div>
 
-    <!-- 縁石情報（最小スケール限定・極小BBox高速クエリ） -->
+    <!-- 縁石情報（手動取得・デフォルトオフ） -->
     <div class="panel-section">
-      <h3>縁石情報 (最大拡大時のみ)</h3>
+      <h3>縁石情報 (OSM手動取得)</h3>
       <div class="control-group" style="color: var(--color-kerb-ok);">
         <div class="control-header">
           <label class="control-label" style="color: var(--text-main);">
             <span class="color-square" style="background: var(--color-kerb-ok);"></span>縁石マーカー表示
           </label>
-          <label class="ui-checkbox"><input type="checkbox" id="chk-kerb" checked><span class="checkmark"></span></label>
+          <!-- デフォルトオフに変更 -->
+          <label class="ui-checkbox"><input type="checkbox" id="chk-kerb"><span class="checkmark"></span></label>
         </div>
         <div class="kerb-sub-legend">
           <div class="kerb-sub-item"><span class="color-square" style="background: var(--color-kerb-ok);"></span>通れる</div>
@@ -330,8 +332,9 @@
           <div class="kerb-sub-item"><span class="color-square" style="background: var(--color-kerb-unknown);"></span>詳細不明</div>
         </div>
         <div class="kerb-status-row">
-          <span id="kerb-status-msg">※最大まで拡大(Zoom 18〜)すると取得します</span>
-          <button type="button" class="retry-btn" onclick="fetchKerbsInBounds(true)">取得</button>
+          <span id="kerb-status-msg">※最大まで拡大してください</span>
+          <!-- 手動取得ボタン（初期状態は無効） -->
+          <button type="button" id="kerb-fetch-btn" class="retry-btn" onclick="fetchKerbsManual()" disabled>取得する</button>
         </div>
       </div>
     </div>
@@ -417,7 +420,6 @@
   const supabaseClient = (SUPABASE_URL.startsWith('__')) 
     ? null : window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
-  // 初期表示は Zoom 15
   const map = L.map('map', { zoomControl: false, attributionControl: false }).setView([33.883, 130.875], 15);
   L.control.zoom({ position: 'topright' }).addTo(map);
   L.control.attribution({ position: 'bottomleft' }).addTo(map);
@@ -444,25 +446,33 @@
   let currentKerbs = [];
 
   // ==========================================
-  // 縁石取得の高速化設定（空間インデックスが効く極小BBox ＋ CORS安定サーバー）
+  // 縁石取得の設定（手動ボタン・最大ズーム限定）
   // ==========================================
-  // 中心から上下左右 0.0012度（約250m四方）の極小BBoxのみを検索（aroundフィルタは激重なため不使用）
-  const KERB_BBOX_DELTA = 0.0012;
-  const KERB_MAX_RESULTS = 100;
-  // CORSヘッダー（Access-Control-Allow-Origin: *）が安定して付与される2大公式エンドポイントに厳選
   const OVERPASS_ENDPOINTS = [
     'https://overpass-api.de/api/interpreter',
     'https://maps.mail.ru/osm/tools/overpass/api/interpreter'
   ];
   let preferredEndpointIndex = 0;
-  let kerbFetchTimer = null;
   let kerbAbortController = null;
-  let lastFetchedCenter = null;
 
-  // 最小スケール（最大ズームレベル付近）かどうかを判定
   function getRequiredMinZoomForKerb() {
     const maxZ = map.getMaxZoom() || 19;
     return Math.min(18, maxZ);
+  }
+
+  // ズームレベルに応じて「取得する」ボタンの有効/無効を更新
+  function updateKerbButtonState() {
+    const currentZoom = map.getZoom();
+    const minRequired = getRequiredMinZoomForKerb();
+    const fetchBtn = document.getElementById('kerb-fetch-btn');
+
+    if (currentZoom < minRequired) {
+      fetchBtn.disabled = true;
+      kerbStatusMsg.innerText = `※最大拡大時(Zoom ${minRequired}〜)のみ取得可能 (現在:${currentZoom})`;
+    } else {
+      fetchBtn.disabled = false;
+      kerbStatusMsg.innerText = '準備完了（ボタンを押して取得）';
+    }
   }
 
   function redrawAllMapElements() {
@@ -519,15 +529,15 @@
   dataTypeSelect.addEventListener('change', loadData);
 
   [chkStep, chkWheelie, chkSteep].forEach(chk => { chk.addEventListener('change', updateBarrierDisplay); });
+  
   chkKerb.addEventListener('change', () => {
     if (chkKerb.checked) {
-      fetchKerbsInBounds(false);
+      updateKerbDisplay();
     } else {
-      if (kerbAbortController) kerbAbortController.abort();
       kerbLayerGroup.clearLayers();
-      kerbStatusMsg.innerText = '非表示中';
     }
   });
+
   chkAlert.addEventListener('change', updateAlertDisplay);
   chkDevice.addEventListener('change', updateDeviceDisplay);
 
@@ -535,24 +545,9 @@
   wheelieSlider.addEventListener('input', function() { wheelieValText.innerText = parseInt(this.value, 10); updateBarrierDisplay(); });
   steepSlider.addEventListener('input', function() { steepValText.innerText = parseInt(this.value, 10); updateBarrierDisplay(); });
 
-  // マップの移動・ズーム完了時（最小スケールの時だけ通信）
-  map.on('moveend', () => {
-    if (!chkKerb.checked) return;
-    if (kerbFetchTimer) clearTimeout(kerbFetchTimer);
-
-    const currentZoom = map.getZoom();
-    const minRequired = getRequiredMinZoomForKerb();
-
-    if (currentZoom < minRequired) {
-      if (kerbAbortController) kerbAbortController.abort();
-      kerbLayerGroup.clearLayers();
-      kerbStatusMsg.innerText = `※最大拡大時(Zoom ${minRequired}〜)のみ取得 (現在: Zoom ${currentZoom})`;
-      return;
-    }
-
-    kerbFetchTimer = setTimeout(() => {
-      fetchKerbsInBounds(false);
-    }, 700);
+  // マップ移動・ズーム時は自動通信せず、ボタンの状態切り替えのみ行う
+  map.on('moveend zoomend', () => {
+    updateKerbButtonState();
   });
 
   function parsePointGeom(geom) {
@@ -566,7 +561,7 @@
   }
 
   // ==========================================
-  // 縁石データ（Overpass API）取得・判定ロジック
+  // 縁石データ（Overpass API）手動取得・判定ロジック
   // ==========================================
   
   function parseKerbHeightCm(heightStr) {
@@ -647,7 +642,6 @@
     return { status, statusLabel, symbol, color, typeLabel, heightLabel, wcLabel };
   }
 
-  // CORSプリフライト(OPTIONS)を発生させないシンプルなGETリクエスト
   async function fetchFromOverpassEndpoint(endpointUrl, query, parentSignal, timeoutMs = 12000) {
     const timeoutController = new AbortController();
     const timer = setTimeout(() => timeoutController.abort(), timeoutMs);
@@ -672,25 +666,13 @@
     }
   }
 
-  window.fetchKerbsInBounds = async function(forceRefresh = false) {
-    if (!chkKerb.checked) return;
-
+  // ユーザーが「取得する」ボタンを押したときだけ実行
+  window.fetchKerbsManual = async function() {
     const currentZoom = map.getZoom();
     const minRequired = getRequiredMinZoomForKerb();
 
-    // 最小スケール未満なら通信しない
     if (currentZoom < minRequired) {
-      if (kerbAbortController) kerbAbortController.abort();
-      kerbLayerGroup.clearLayers();
-      kerbStatusMsg.innerText = `※最大拡大時(Zoom ${minRequired}〜)のみ取得 (現在: Zoom ${currentZoom})`;
-      return;
-    }
-
-    const center = map.getCenter();
-
-    // 前回取得した中心点から60m未満の移動であれば再通信しない
-    if (!forceRefresh && lastFetchedCenter && center.distanceTo(lastFetchedCenter) < 60) {
-      updateKerbDisplay();
+      alert(`地図をもう少し拡大してください（現在のズーム: ${currentZoom} / 必要: ${minRequired}以上）`);
       return;
     }
 
@@ -700,15 +682,15 @@
     kerbAbortController = new AbortController();
     const currentSignal = kerbAbortController.signal;
 
-    // 空間インデックス(Quadtree)が超高速に効く「極小BBox（約250m四方）」を計算
-    const s = (center.lat - KERB_BBOX_DELTA).toFixed(5);
-    const w = (center.lng - KERB_BBOX_DELTA).toFixed(5);
-    const n = (center.lat + KERB_BBOX_DELTA).toFixed(5);
-    const e = (center.lng + KERB_BBOX_DELTA).toFixed(5);
+    const bounds = map.getBounds();
+    const s = bounds.getSouth().toFixed(5);
+    const w = bounds.getWest().toFixed(5);
+    const n = bounds.getNorth().toFixed(5);
+    const e = bounds.getEast().toFixed(5);
 
-    const overpassQuery = `[out:json][timeout:10];node["barrier"="kerb"](${s},${w},${n},${e});out ${KERB_MAX_RESULTS};`;
+    const overpassQuery = `[out:json][timeout:15];node["barrier"="kerb"](${s},${w},${n},${e});out 200;`;
 
-    kerbStatusMsg.innerText = '中央付近の縁石を取得中...';
+    kerbStatusMsg.innerText = '縁石データを取得中...';
 
     for (let i = 0; i < OVERPASS_ENDPOINTS.length; i++) {
       if (currentSignal.aborted) return;
@@ -717,15 +699,10 @@
       const endpoint = OVERPASS_ENDPOINTS[idx];
 
       try {
-        if (i > 0) {
-          kerbStatusMsg.innerText = `予備サーバーで再試行中...`;
-        }
-
         const json = await fetchFromOverpassEndpoint(endpoint, overpassQuery, currentSignal, 12000);
         if (currentSignal.aborted) return;
 
         preferredEndpointIndex = idx;
-        lastFetchedCenter = center;
 
         currentKerbs = (json.elements || []).map(el => ({
           id: el.id,
@@ -734,26 +711,25 @@
           tags: el.tags || {}
         }));
 
+        // 取得成功したらチェックボックスを自動でONにする
+        chkKerb.checked = true;
         updateKerbDisplay();
+        kerbStatusMsg.innerText = `取得成功: ${currentKerbs.length} 件`;
         return;
       } catch (err) {
         if (currentSignal.aborted) return;
-        console.warn(`Overpass bbox query failed (${endpoint}):`, err.message || err);
+        console.warn(`Overpass query failed (${endpoint}):`, err.message || err);
       }
     }
 
     if (!currentSignal.aborted) {
-      kerbStatusMsg.innerText = '取得失敗 (少し待って「取得」を押してください)';
+      kerbStatusMsg.innerText = '取得に失敗しました (再試行してください)';
     }
   };
 
   function updateKerbDisplay() {
     kerbLayerGroup.clearLayers();
     if (!chkKerb.checked) return;
-
-    const currentZoom = map.getZoom();
-    const minRequired = getRequiredMinZoomForKerb();
-    if (currentZoom < minRequired) return;
 
     currentKerbs.forEach(k => {
       if (k.lat == null || k.lon == null) return;
@@ -808,10 +784,6 @@
       marker.bindPopup(popupHtml, { className: 'ui-popup' });
       marker.addTo(kerbLayerGroup);
     });
-
-    if (lastFetchedCenter) {
-      kerbStatusMsg.innerText = `中央付近(約250m四方): ${currentKerbs.length} 件の縁石`;
-    }
   }
 
   // ==========================================
@@ -1041,10 +1013,11 @@
     L.marker(endPt, { icon: createIcon('G', colorEnd) }).addTo(dataLayerGroup);
   }
 
-  // 初期ロード処理
+  // 初期ロード処理（自動通信は行わず、ボタンの状態のみ初期化）
   fetchTripList();
   fetchDeviceStatus();
   fetchStandaloneAlerts();
+  updateKerbButtonState();
 </script>
 </body>
 </html>
